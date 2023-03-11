@@ -18,6 +18,6 @@
 |:-----:|:----:|
 | 语音包 + 人物 + 关键词 | 发送匹配的语音包 |  
 
-### 例子
+### 效果
 语音包 嘉然 起床  
 <img src="https://github.com/whalefall123456/resource/blob/main/img/command_example_voice_jr.png" width="300" height="100">
