@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import random
 import sqlite3
 from pathlib import Path
@@ -26,10 +27,14 @@ def get_local_voice(data:dict,character:str,message:list):
         return MessageSegment.record(voice_value)
     #如果没给参数，或者参数是随机
     else:
-        data_list = list(data_chac.values())
+        data_list = os.listdir(voice_path / character)
         random_num = random.randint(0,len(data_list))
         voice_value = voice_path / character / data_list[random_num]
         return MessageSegment.record(voice_value)
+        # data_list = list(data_chac.values())
+        # random_num = random.randint(0,len(data_list))
+        # voice_value = voice_path / character / data_list[random_num]
+        # return MessageSegment.record(voice_value)
 
 #下载音频
 async def download_voice(url: str, client: AsyncClient):
