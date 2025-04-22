@@ -26,7 +26,7 @@ class FortuneManager:
             self.fortune_data[gid][uid] = None
         last_sign_date = self.fortune_data[gid][uid]
         today_date = date.today()
-        if last_sign_date != today_date:
+        if last_sign_date != today_date.isoformat():
             # 第一次抽签或者今天第一次
             return True
         return False
@@ -35,7 +35,7 @@ class FortuneManager:
         title, text = self.get_copywriting()
         out_dir = drawing(gid, uid, title, text)
         today_date = date.today()
-        self.fortune_data[gid][uid] = today_date
+        self.fortune_data[gid][uid] = today_date.isoformat()
         return out_dir
 
     def get_copywriting(self):

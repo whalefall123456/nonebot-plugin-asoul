@@ -11,7 +11,7 @@ from pydantic import BaseModel
 class Config(BaseModel):
     data_path: str = "./data/asoul"
     command_priority: int = 15
-    home_url = "https://github.com/whalefall123456/nonebot-plugin-asoul"
+    home_url: str = "https://github.com/whalefall123456/nonebot-plugin-asoul"
 
 
 config = get_plugin_config(Config)

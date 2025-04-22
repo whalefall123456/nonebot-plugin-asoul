@@ -9,6 +9,7 @@ import json
 import random
 from typing import List
 
+import httpx
 from PIL import Image, ImageDraw, ImageFont
 from nonebot.log import logger
 from .config import config
@@ -24,10 +25,31 @@ def open_json(filename: str):
     return data
 
 
+def save_json(filename: str, data: dict):
+    """
+    Save a dictionary to a JSON file.
+
+    :param filename: The name of the JSON file.
+    :param data: The dictionary to save.
+    """
+    file_path = os.path.join(config.data_path, filename)
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        # Write the dictionary to the file
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        logger.error(f"Failed to save JSON to {file_path}: {e}")
+        raise
+
+
 def drawing(gid: str, uid: str, title: str, text):
     # 1. Random choice a base image
     imgdir = os.path.join(config.data_path, "resource/img/asoul")
     img_list = os.listdir(imgdir)
+    # logger.info(" ".join(img_list))
     imgPath = os.path.join(imgdir, random.choice(img_list))
     img: Image.Image = Image.open(imgPath).convert("RGB")
     draw = ImageDraw.Draw(img)
@@ -125,3 +147,29 @@ def decrement(text: str):
             result.append(text[i * cardinality: (i + 1) * cardinality])
 
     return col_num, result
+
+
+def download_img(url: str, img_path: str, img_name: str):
+    """
+    Download an image from a URL and save it to the specified path.
+
+    :param url: The URL of the image.
+    :param img_path: The directory where the image will be saved.
+    :param img_name: The name of the image file.
+    """
+    # Ensure the directory exists
+    if not os.path.exists(img_path):
+        os.makedirs(img_path, exist_ok=True)
+    full_path = os.path.join(img_path, img_name)
+    try:
+        with httpx.Client() as client:
+            response = client.get(url, timeout=10.0)
+            response.raise_for_status()  # Raise an error for HTTP errors
+        # Write the image content to the file
+        with open(full_path, "wb") as f:
+            f.write(response.content)
+        print(f"Image successfully downloaded to {full_path}")
+    except httpx.RequestError as e:
+        print(f"An error occurred while requesting the image: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
