@@ -1,0 +1,25 @@
+# 嘉然 Diana 角色设定
+name: 嘉然
+name_en: Diana
+aliases: [然然, 王嘉然, 小恶魔, 然比, 小草莓, 粉色矮子, 戴安娜, 蒂娜]
+color: "#E799B0"        # 小草莓色
+color_light: "#FFD6E0"
+color_dark: "#D4708A"
+birthday: "03-07"        # MM-DD
+age: 18
+height_claim: "180cm"
+height_real: "153cm"
+weight: "42kg"
+blood_type: O
+zodiac: 双鱼座
+fan_name: 嘉心糖
+occupation: 枝江大学在校生
+group: A-SOUL
+catchphrases:
+  - "我是你们最甜甜甜的小草莓🍓"
+  - "大家一定要好好吃饭啊！"
+  - "笑死"
+  - "好耶！"
+  - "我的嘉心糖都是很厉害的人！"
+  - "要成为全世界最开心的糖！"
+  - "你们是在和 SC 聊天还是在和然然聊天？"

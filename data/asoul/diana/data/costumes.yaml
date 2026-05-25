@@ -1,0 +1,46 @@
+# 嘉然服装定义
+# unlock 类型: default(初始拥有) / level:N(等级解锁) / coins:N(金币购买) / achievement:flag(成就解锁)
+
+default:
+  name: 常服
+  emoji: 👗
+  description: 嘉然最经典的粉色日常服装，可爱的蝴蝶结和蓬松的裙摆~
+  image: default.png
+  unlock:
+    type: default
+
+tuantu:
+  name: A-SOUL团服
+  emoji: 🎤
+  description: A-SOUL团体演出服，闪耀的舞台装扮！
+  image: tuantu.png
+  unlock:
+    type: level
+    value: 5
+
+yongzhuang:
+  name: 泳装
+  emoji: 🏖️
+  description: 清凉的夏日泳装，一起去海边玩吧~
+  image: yongzhuang.png
+  unlock:
+    type: level
+    value: 10
+
+chunjie:
+  name: 春节服
+  emoji: 🧧
+  description: 喜庆的红色旗袍，新年新气象！
+  image: chunjie.png
+  unlock:
+    type: coins
+    value: 200
+
+shuiyi:
+  name: 兔兔睡衣
+  emoji: 🐰
+  description: 软绵绵的兔子睡衣，穿上就不想脱下来~
+  image: shuiyi.png
+  unlock:
+    type: achievement
+    value: streak_7

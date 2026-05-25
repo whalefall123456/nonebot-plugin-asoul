@@ -1,0 +1,353 @@
+# ── 随机日常事件 ──
+random:
+  打嗝事故:
+    probability: 5
+    text: "嗝！！！（嘉然打嗝了，然后哭了出来）偶像包袱碎了一地……"
+    effects: {mood: -15, closeness: 8}
+  秃然:
+    probability: 3
+    text: "嘉然压力太大，突然掉光了头发！！（虽然很快长回来了）"
+    effects: {mood: -20, coins: 20}
+  平地摔:
+    probability: 5
+    text: "啊！——然然平地摔了……但是马上站了起来，拍拍衣服说「没事没事」"
+    effects: {energy: -10, mood: -5}
+  呆毛竖起:
+    probability: 8
+    text: "嘉然的呆毛突然竖了起来！好可爱~"
+    effects: {mood: 10}
+  蝴蝶结松了:
+    probability: 6
+    text: "呀，大蝴蝶结松了……嘉心糖可以帮我重新系一下吗？"
+    effects: {mood: -5, closeness: 5}
+  偶像包袱爆炸:
+    probability: 4
+    text: "嘉然觉得自己的偶像形象彻底完蛋了……（但其实大家觉得更可爱了）"
+    effects: {mood: -15, closeness: 5}
+  嘉心糖嚼起来什么味道:
+    probability: 6
+    text: "嘉然突然盯着你：「嘉心糖嚼起来到底是什么味道呢……？」"
+    effects: {closeness: 10, mood: 5}
+  发现新美食:
+    probability: 10
+    text: "嘉然在小巷子里发现了一家新开的店！迫不及待要去探店了~"
+    effects: {mood: 15, coins: -10}
+  煎饺只有两个:
+    probability: 8
+    text: "「只有两个煎饺的早餐店耶！但是每个煎饺都特别大，超好吃！赚到了(•̀⌄•́)」"
+    effects: {mood: -5, hunger: 10}
+  吃到辣的了:
+    probability: 7
+    text: "啊！这个好辣！！水水水！！（嘉然被辣得眼泪汪汪）"
+    effects: {mood: -20, hunger: 10}
+  连连看连胜:
+    probability: 5
+    text: "嘉然连赢了十局连连看！得意洋洋地哼起了歌~"
+    effects: {mood: 20, energy: -15}
+  连连看卡关:
+    probability: 5
+    text: "嘉然被一关连连看困住了，已经盯着屏幕发了十分钟呆……"
+    effects: {mood: -10, energy: -10}
+  突然想吃垃圾食品:
+    probability: 8
+    text: "「突然好想吃薯片可乐汉堡……虽然很不健康但是……就一次嘛！」"
+    effects: {mood: -10}
+  被夸可爱害羞了:
+    probability: 6
+    text: "「诶？！我很可爱吗？……谢谢……（小声）」嘉然害羞地低下了头~"
+    effects: {mood: 15, closeness: 5}
+  小恶魔模式:
+    probability: 5
+    text: "嘉然露出了小恶魔的微笑：「今天我要捉弄嘉心糖~」"
+    effects: {mood: 10, closeness: 8}
+  元气满满:
+    probability: 10
+    text: "今天嘉然元气值MAX！蹦蹦跳跳的，连呆毛都在跳舞~"
+    effects: {hunger: -5, mood: 5, energy: 5, closeness: 5}
+  想嘉心糖了:
+    probability: 8
+    text: "嘉然突然安静下来：「有点想嘉心糖们了……你们在干什么呢？」"
+    effects: {closeness: 10, mood: 5}
+  做噩梦了:
+    probability: 4
+    text: "嘉然醒来后心有余悸：「梦到演唱会台下一个人都没有……」"
+    effects: {mood: -15, energy: -10}
+  梦到演唱会:
+    probability: 6
+    text: "「我梦到我们在鸟巢开演唱会了！台下全是嘉心糖！」"
+    effects: {mood: 15, closeness: 5}
+  下雨天忧郁:
+    probability: 5
+    text: "窗外下着雨，嘉然趴在窗边轻轻地哼着歌，有点忧郁的样子。"
+    effects: {mood: -10}
+  晴天开心:
+    probability: 8
+    text: "今天天气超好！嘉然拉着你要去逛街：「阳光正好，出去玩吧！」"
+    effects: {mood: 10, energy: 10}
+  枝江大学考试:
+    probability: 6
+    text: "考试周到了！嘉然在认真复习：「偶像也不能挂科啊……」"
+    effects: {mood: -10, energy: -15, coins: 30}
+  考试考砸了:
+    probability: 3
+    text: "嘉然沮丧地拿着试卷：「考砸了……求摸摸头……」"
+    effects: {mood: -20}
+  练习室偶遇向晚:
+    probability: 5
+    text: "在练习室碰到了向晚！两个人一起练舞，气氛超级好~ 嘉晚饭赢！"
+    effects: {mood: 15}
+  收到粉丝信:
+    probability: 6
+    text: "嘉然读着粉丝写的信，眼眶红了：「大家写的信都好用心……我会好好保存的。」"
+    effects: {mood: 20, closeness: 10}
+  新衣装发布:
+    probability: 3
+    text: "新衣装终于来了！嘉然兴奋地转圈圈：「好看吗好看吗！！」"
+    effects: {mood: 30, coins: 50}
+  旧衣装被吐槽:
+    probability: 4
+    text: "「什么？出道那套衣服很丑？！……虽然当时确实有点尴尬……」"
+    effects: {mood: -10}
+  深夜睡不着:
+    probability: 6
+    text: "凌晨两点，嘉然还在翻来覆去：「睡不着……这个点还有人醒着吗？」"
+    effects: {energy: -10, mood: -5}
+  猫咪路过:
+    probability: 7
+    text: "一只猫咪路过练习室窗外，嘉然的注意力完全被吸引走了：「咪咪！！」"
+    effects: {mood: 15}
+  蚊子出道:
+    probability: 4
+    text: "「又一只蚊子！这是要C位出道吗？」嘉然追着蚊子满屋子跑。"
+    effects: {mood: -5, energy: -5}
+  吃夜宵被拍:
+    probability: 5
+    text: "「被拍到在便利店买夜宵了……明天又要被说没有偶像自觉了！」"
+    effects: {mood: -5, hunger: 10}
+  螺蛳粉社交:
+    probability: 6
+    text: "嘉然拉着队友一起尝试螺蛳粉：「来嘛来嘛！真的很好吃！……虽然味道有点大……」"
+    effects: {mood: 10, closeness: 5}
+  自拍营业:
+    probability: 8
+    text: "嘉然拍了108张自拍，最终选了一张发到动态：「今天的然然也很好看吧~」"
+    effects: {mood: 10, closeness: 3}
+  呆毛被压:
+    probability: 5
+    text: "刚刚睡醒的嘉然呆毛完全被压扁了，努力地用手捋直却怎么都翘不起来……"
+    effects: {mood: -5}
+
+# ── 关键词触发事件 ──
+meme:
+  嘉门:
+    keywords: [嘉门, 圣嘉然]
+    text: "🙏 圣嘉然在上，愿嘉门保佑每一个嘉心糖。嘉然：（脸红）「这个真的不是我的梗啦！！」"
+    effects: {hunger: 5, mood: 10, energy: 5, closeness: 10}
+  鸡胸肉:
+    keywords: [鸡胸肉, 好好吃饭]
+    text: "「大家一定要好好吃饭啊！」——嘉然想起了那篇让她感动落泪的小作文，眼眶又红了。"
+    effects: {mood: 20, closeness: 15, coins: 10}
+  草莓:
+    keywords: [草莓, 小草莓, 最甜甜甜]
+    text: "「我是你们最甜甜甜的小草莓🍓！！」——虽然本人觉得很尴尬，但嘉心糖们永远喜欢这个自我介绍。"
+    effects: {mood: 15, closeness: 10}
+  一米八:
+    keywords: [一米八, 一米吧, 身高]
+    text: "「我确实一米八啊！」「——是口字旁那个'吧'吧？」嘉然炸毛了！📏"
+    effects: {mood: -10, closeness: 5}
+  笑死:
+    keywords: [笑死]
+    text: "「笑死~」——嘉然发出了标志性的敷衍笑声。"
+    effects: {mood: 5}
+  猫中毒:
+    keywords: [猫中毒, 千万播放]
+    text: "「にゃ～にゃ～にゃ～🐱 猫中毒已经千万播放了哦！没听过的快去听！」"
+    effects: {mood: 15, energy: -5}
+  嘉然小姐的狗:
+    keywords: [嘉然小姐的狗, 寸光]
+    text: "嘉然读着粉丝的定型文，有点害羞又有点高兴：「大家写的文字真的好特别……」"
+    effects: {closeness: 20, mood: 10}
+  嘉心糖屁用没有:
+    keywords: [嘉心糖屁用没有, 屁用没有]
+    text: "「是谁说的！！我的嘉心糖都是很厉害的人！！」——嘉然认真地为粉丝辩护。"
+    effects: {closeness: 15, mood: 10}
+  圣诞礼物:
+    keywords: [圣诞礼物, 你要这个]
+    text: "「圣诞礼物？你要这个？这个？还是这个？还是说……我可以吗？」——嘉然复刻了经典圣诞节台词！"
+    effects: {mood: 15, closeness: 15}
+  日在校园:
+    keywords: [日在校园]
+    text: "「那不是一部很温馨的日常番吗？」——嘉然的动漫知识黑洞又来了。"
+    effects: {mood: 10, closeness: 8}
+  少管我:
+    keywords: [少管我, 别管我]
+    text: "「少管我啦！！」——嘉然开启了叛逆模式，但其实心里很在意。"
+    effects: {mood: 15, closeness: -5}
+  短小精悍:
+    keywords: [短小精悍]
+    text: "「短小精悍怎么了！短小精悍也是萌点！」——嘉然和向晚的互怼永不过时。"
+    effects: {mood: -5, closeness: 8}
+  粉色矮子:
+    keywords: [粉色矮子]
+    text: "「！！！！！谁是粉色矮子！！你有胆子再说一遍！！」💢💢💢"
+    effects: {mood: -25, closeness: -10}
+  蒂娜:
+    keywords: [蒂娜, 蒂安娜]
+    text: "「蒂娜……那是很久以前的名字了。你是老粉吧~」嘉然露出了怀念的笑容。"
+    effects: {mood: 8, closeness: 10}
+  灯笼裤:
+    keywords: [灯笼裤]
+    text: "「等等等等你怎么知道灯笼裤的事情！！（满脸通红）」"
+    effects: {mood: -5, closeness: 5}
+  Mua:
+    keywords: [Mua, mua, 么么]
+    text: "「Mua~💋 给你一个大大的Mua！今天心情好！」"
+    effects: {mood: 20, closeness: 15}
+  连败:
+    keywords: [连败, 16连败, 25岁]
+    text: "「加油！才16连败没关系的！」——嘉然的温柔鼓励。虽然你可能不需要……"
+    effects: {mood: 10, closeness: 8}
+  螺蛳粉代言:
+    keywords: [螺蛳粉]
+    text: "「螺蛳粉真的很好吃！！虽然有人说臭……但是他们不懂！」——螺蛳粉代言人嘉然。"
+    effects: {hunger: 10, mood: 10}
+  连连看高手:
+    keywords: [连连看]
+    text: "「连连看？来吧！我可是能玩到凌晨5点的人！」"
+    effects: {mood: 8, energy: -5}
+  狗妈:
+    keywords: [狗妈, 神乐七奈, 妈]
+    text: "「狗妈给我画的形象超可爱的！感谢狗妈~」"
+    effects: {mood: 10, closeness: 5}
+  队友:
+    keywords: [向晚, 贝拉, 乃琳, 珈乐, 晚晚, 拉姐, 琳姐, 乐]
+    text: "「我们A-SOUL的大家关系最好了！虽然有时候会互相伤害……但那也是爱的一种形式！」"
+    effects: {mood: 8, closeness: 3}
+  煎饺美食:
+    keywords: [煎饺, 小巷子, 美食小巷]
+    text: "「说到美食小巷……那个煎饺真的超好吃！还有可颂！还有蟹炒年糕！还有……（滔滔不绝）」"
+    effects: {hunger: 5, mood: 8}
+  脚臭:
+    keywords: [脚臭, 脚]
+    text: "「我的脚不臭！都是努力的味道！」——嘉然义正言辞地为自己辩护。"
+    effects: {mood: -10, closeness: 5}
+  帆布袋:
+    keywords: [帆布袋]
+    text: "「帆布袋？我有好多呢！每次活动都有新的~」——帆布袋收藏家嘉然。"
+    effects: {mood: 8, coins: 10}
+  嘉晚饭:
+    keywords: [嘉晚饭]
+    text: "「我和向晚是超级好朋友！虽然她睡觉打呼磨牙……但是我不会嫌弃她的！大概。」"
+    effects: {mood: 10, closeness: 5}
+
+# ── 特殊日期事件 ──
+special_dates:
+  "03-07":
+    name: 嘉然生日庆典
+    text: "🎂 今天是小草莓的生日！！祝嘉然生日快乐！！然然许了个愿望：希望所有的嘉心糖都开开心心！"
+    effects: {hunger: 30, mood: 30, energy: 30, closeness: 30, coins: 200}
+  "03-01":
+    name: 生日月开始
+    text: "🎉 3月到了！小草莓的生日月！整个月都是特别的日子~ 互动效果翻倍！"
+    effects: {mood: 15, closeness: 10}
+  "12-12":
+    name: 出道纪念日
+    text: "🔥 今天是嘉然出道首播的纪念日！回看宅舞20连，那时候虽然很辛苦，但是坚持下来了！"
+    effects: {exp: 50, coins: 100, mood: 20}
+  "11-23":
+    name: 第一条动态纪念日
+    text: "📝 这一天，嘉然在B站发布了第一条动态。一切的开始，一切的起点。"
+    effects: {mood: 20, closeness: 10}
+  "12-25":
+    name: 圣诞特别日
+    text: "🎄 圣诞快乐！「圣诞礼物？你要这个？这个？还是这个？还是说……我可以吗？」"
+    effects: {mood: 25, closeness: 20}
+  "12-30":
+    name: 小作文纪念日
+    text: "✉️ 第一届小作文大赛纪念日！「半吊子的鸡胸肉」感动了无数人的日子。"
+    effects: {closeness: 30, mood: 15}
+  "01-01":
+    name: 元旦新年
+    text: "🎊 新年快乐！嘉然穿着新春衣装给嘉心糖们拜年啦~ 今年也要一直在一起！"
+    effects: {hunger: 10, mood: 15, energy: 15, closeness: 15}
+  "04-02":
+    name: 猫中毒发布日
+    text: "🐱 今天是《猫中毒》发布的日子！这首翻唱已经成了嘉然的代表作之一~"
+    effects: {mood: 25, coins: 50}
+  "09-21":
+    name: 百万粉纪念日
+    text: "🏆 B站第一个在活动期间达成百万粉的中文原生虚拟UP主！这是所有嘉心糖共同的成就！"
+    effects: {hunger: 10, mood: 20, energy: 10, closeness: 20, coins: 100}
+  "10-11":
+    name: 207次呼唤日
+    text: "💌 这一天嘉然连续呼唤了207次「嘉心糖」！然然想你们了！你们想然然吗？"
+    effects: {closeness: 20, mood: 10}
+  "04-17":
+    name: Hopeful Dreamer日
+    text: "🎵 原创单曲《Hopeful Dreamer》发布日！和中国绊爱一起合作的回忆~"
+    effects: {mood: 15, energy: -5}
+  "08-26":
+    name: 美食小巷日
+    text: "🍜 美食小巷系列开启的日子！从此以后嘉心糖们跟着然然吃遍了大江南北~"
+    effects: {hunger: 20, mood: 15}
+  "04-07":
+    name: 嘉心糖之味日
+    text: "🍬 「嘉心糖嚼起来是什么味道？？？！！！」——嘉然终于对粉丝下嘴了！"
+    effects: {mood: 15, closeness: 10}
+  "06-20":
+    name: 装扮发售日
+    text: "👗 嘉然Bilibili装扮正式上线！55555套5天售罄~"
+    effects: {mood: 10, coins: 20}
+
+# ── 成就/成长事件 ──
+achievements:
+  streak_7:
+    condition: {streak_days: 7}
+    name: 全勤嘉心糖
+    text: "🏅 连续7天和然然互动！解锁称号「全勤嘉心糖」！你是然然最忠实的伙伴！"
+    effects: {closeness: 20, coins: 50}
+  streak_30:
+    condition: {streak_days: 30}
+    name: 圣嘉然之盾
+    text: "🛡️ 连续30天互动！解锁称号「圣嘉然之盾」！你的忠诚比钻石更坚！"
+    effects: {hunger: 10, mood: 20, energy: 10, closeness: 20, coins: 200}
+  closeness_100:
+    condition: {closeness: 100}
+    name: 最好的嘉心糖
+    text: "💕 亲密度达到了100！你是然然最好的嘉心糖！解锁特殊对话~"
+    effects: {mood: 30}
+  level_5:
+    condition: {level: 5}
+    name: 小草莓守护者
+    text: "🍓 到达5级！解锁称号「小草莓守护者」！你是小草莓最忠实的骑士！"
+    effects: {}
+  level_10:
+    condition: {level: 10}
+    name: 嘉门传教士
+    text: "🙏 到达10级！解锁称号「嘉门传教士」！愿你将嘉门的光辉传遍四方！"
+    effects: {}
+  level_20:
+    condition: {level: 20}
+    name: 圣嘉然骑士
+    text: "⚔️ 到达20级！解锁称号「圣嘉然骑士」！你是圣嘉然的守护骑士！全属性上限+5！"
+    effects: {}
+  feed_100:
+    condition: {interaction_feed_count: 100}
+    name: 米其林三星饲养员
+    text: "🍽️ 累计喂食100次！解锁称号「米其林三星饲养员」！你对然然的胃口了如指掌！"
+    effects: {}
+  play_50:
+    condition: {interaction_play_count: 50}
+    name: 玩乐达人
+    text: "🎮 累计玩耍50次！解锁称号「玩乐达人」！你知道然然玩什么最开心！"
+    effects: {}
+  all_memes:
+    condition: {meme_triggers: 15}
+    name: 百科全书
+    text: "📖 触发了15个不同的梗事件！解锁称号「百科全书」！你对然然的了解无人能及！"
+    effects: {hunger: 10, mood: 10}
+  birthday_witness:
+    condition: {on_birthday: true}
+    name: 生日见证者
+    text: "🎂 你在然然生日当天互动了！获得限定勋章「生日见证者」！"
+    effects: {}

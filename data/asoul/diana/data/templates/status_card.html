@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>嘉然状态卡片</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 680px; height: 400px;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #FFF4F6 0%, #FFD6E0 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    width: 640px; background: #fff; border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(231,153,176,0.25);
+    padding: 16px 28px; position: relative; overflow: hidden;
+    display: flex; gap: 20px; align-items: center;
+  }
+  .card-left { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .header { margin-bottom: 10px; }
+  .name { font-size: 20px; font-weight: bold; color: #D4708A; }
+  .title-badge {
+    display: inline-block; background: linear-gradient(135deg, #E799B0, #FFB8C6);
+    color: #fff; font-size: 12px; padding: 3px 12px; border-radius: 12px; margin-left: 8px;
+  }
+  .info-row { display: flex; gap: 8px; margin-bottom: 10px; font-size: 12px; color: #888; flex-wrap: wrap; }
+  .info-item { background: #FFF4F6; padding: 3px 10px; border-radius: 8px; display: flex; align-items: center; gap: 4px; }
+  .stats { margin: 4px 0; }
+  .stat-row { display: flex; align-items: center; margin: 7px 0; gap: 8px; font-size: 13px; color: #555; }
+  .stat-icon { width: 20px; text-align: center; font-size: 15px; }
+  .stat-label { width: 50px; font-weight: 500; }
+  .stat-bar-bg {
+    flex: 1; height: 10px; background: #F5E6EA; border-radius: 5px; overflow: hidden;
+  }
+  .stat-bar-fill {
+    height: 100%; border-radius: 5px;
+    background: linear-gradient(90deg, #E799B0, #FFB8C6);
+    width: var(--bar-width);
+  }
+  .stat-value { width: 32px; text-align: right; font-weight: bold; color: #D4708A; font-size: 13px; }
+  .coin-row { margin-top: 8px; }
+  .footer {
+    margin-top: 10px; padding-top: 8px; border-top: 1px solid #FFE8EE;
+    font-size: 12px; color: #D4708A; text-align: center; font-style: italic;
+  }
+
+  .card-right {
+    width: 240px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .costume-figure {
+    width: 240px; height: 320px; display: flex; align-items: center; justify-content: center;
+  }
+  .costume-figure img {
+    max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+  }
+  .costume-placeholder {
+    font-size: 100px; color: #E799B0; opacity: 0.4;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-left">
+    <div class="header">
+      <span class="name">{{ name }}</span>
+      <span class="title-badge">{{ title }}</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-item">&#x2B50; Lv.{{ level }}</span>
+      <span class="info-item">&#x1F525; 连续{{ streak_days }}天</span>
+      <span class="info-item">&#x1F457; {{ outfit }}</span>
+    </div>
+
+    <div class="stats">
+      {% for s in stats %}
+      <div class="stat-row">
+        <span class="stat-icon">{{ s.icon }}</span>
+        <span class="stat-label">{{ s.label }}</span>
+        <div class="stat-bar-bg">
+          <div class="stat-bar-fill" style="--bar-width: {{ s.value }}%;"></div>
+        </div>
+        <span class="stat-value">{{ s.value }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="info-row coin-row">
+      <span class="info-item">&#x1F4B0; 嘉心糖币 {{ coins }}</span>
+    </div>
+
+    <div class="footer">{{ quote }}</div>
+  </div>
+
+  <div class="card-right">
+    <div class="costume-figure">
+      {% if costume_image %}
+      <img src="{{ costume_image }}" alt="{{ outfit }}" />
+      {% else %}
+      <span class="costume-placeholder">&#x1F353;</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

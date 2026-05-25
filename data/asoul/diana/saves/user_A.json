@@ -1,0 +1,24 @@
+{
+  "user_id": "user_A",
+  "hunger": 100,
+  "mood": 85,
+  "energy": 100,
+  "closeness": 87,
+  "level": 1,
+  "exp": 32,
+  "coins": 76,
+  "outfit": "default",
+  "owned_outfits": [
+    "default"
+  ],
+  "title": "新来的嘉心糖",
+  "last_tick": 1779096965.6819234,
+  "created_at": 1779096948.4638405,
+  "interaction_count": 2,
+  "streak_days": 0,
+  "last_interaction_date": "2026-05-18",
+  "unlocked_titles": [],
+  "achievement_flags": {
+    "interaction_feed_count": 4
+  }
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>换装选择</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 600px; font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #FFF4F6 0%, #FFD6E0 100%);
+    display: flex; align-items: center; justify-content: center; padding: 20px 0;
+  }
+  .card {
+    width: 560px; background: #fff; border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(231,153,176,0.25);
+    padding: 20px 24px;
+  }
+  .title {
+    font-size: 18px; font-weight: bold; color: #D4708A; text-align: center; margin-bottom: 16px;
+  }
+  .grid {
+    display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+  }
+  .costume-item {
+    width: 150px; background: #FFF4F6; border-radius: 16px;
+    padding: 10px; text-align: center; position: relative;
+    border: 2px solid transparent; transition: border-color 0.2s;
+  }
+  .costume-item.equipped { border-color: #E799B0; background: #FFE8EE; }
+  .costume-item.locked { opacity: 0.5; }
+  .costume-img-wrap {
+    width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 8px;
+    background: linear-gradient(135deg, #E799B0, #FFD6E0);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .costume-img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .costume-placeholder {
+    font-size: 32px; color: #fff;
+  }
+  .costume-name { font-size: 13px; font-weight: bold; color: #555; }
+  .costume-badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 8px;
+    margin-top: 4px;
+  }
+  .badge-equipped { background: #E799B0; color: #fff; }
+  .badge-owned { background: #E8E8E8; color: #999; }
+  .badge-locked { background: #F5E6EA; color: #D4708A; }
+  .badge-cost { background: #FFF3E0; color: #E6A23C; }
+  .costume-desc {
+    font-size: 11px; color: #999; margin-top: 4px; line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="title">👗 换装衣柜</div>
+  <div class="grid">
+    {% for c in costumes %}
+    <div class="costume-item {% if c.equipped %}equipped{% endif %} {% if not c.owned %}locked{% endif %}">
+      <div class="costume-img-wrap">
+        {% if c.image_data %}
+        <img class="costume-img" src="{{ c.image_data }}" alt="{{ c.name }}" />
+        {% else %}
+        <span class="costume-placeholder">{{ c.emoji }}</span>
+        {% endif %}
+      </div>
+      <div class="costume-name">{{ c.name }}</div>
+      {% if c.equipped %}
+      <span class="costume-badge badge-equipped">穿着中</span>
+      {% elif c.owned %}
+      <span class="costume-badge badge-owned">已解锁</span>
+      {% else %}
+        {% if c.unlock.type == "coins" %}
+        <span class="costume-badge badge-cost">💰 {{ c.unlock.value }}</span>
+        {% elif c.unlock.type == "level" %}
+        <span class="costume-badge badge-locked">🔒 Lv.{{ c.unlock.value }}</span>
+        {% elif c.unlock.type == "achievement" %}
+        <span class="costume-badge badge-locked">🔒 成就</span>
+        {% else %}
+        <span class="costume-badge badge-locked">🔒 未解锁</span>
+        {% endif %}
+      {% endif %}
+      <div class="costume-desc">{{ c.description }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+</body>
+</html>

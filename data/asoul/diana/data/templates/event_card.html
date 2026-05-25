@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>事件卡片</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 600px; height: 380px;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #FFF4F6 0%, #FFD6E0 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    width: 540px; background: #fff; border-radius: 24px;
+    box-shadow: 0 6px 24px rgba(231,153,176,0.2);
+    padding: 28px 30px 22px; position: relative;
+    text-align: center; margin-top: 14px;
+  }
+  .badge {
+    position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, #E799B0, #D4708A);
+    color: #fff; font-size: 13px; font-weight: bold;
+    padding: 5px 22px; border-radius: 14px; white-space: nowrap;
+    z-index: 1;
+  }
+  .event-icon  { font-size: 50px; margin: 8px 0 4px; line-height: 1; }
+  .event-title { font-size: 20px; font-weight: bold; color: #D4708A; margin-bottom: 10px; }
+  .event-text  {
+    font-size: 16px; color: #555; line-height: 1.8;
+    padding: 14px 18px; background: #FFF4F6; border-radius: 14px; margin-bottom: 12px;
+  }
+  .effects { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .effect-item {
+    font-size: 13px; padding: 4px 12px; border-radius: 8px;
+    background: #FFF0F3; color: #D4708A;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  {% if badge -%}
+  <div class="badge">{{ badge }}</div>
+  {% endif -%}
+  <div class="event-icon">{{ icon }}</div>
+  <div class="event-title">{{ title }}</div>
+  <div class="event-text">{{ text }}</div>
+  {% if effects -%}
+  <div class="effects">
+    {% for e in effects -%}
+    <span class="effect-item">{{ e }}</span>
+    {% endfor -%}
+  </div>
+  {% endif -%}
+</div>
+</body>
+</html>

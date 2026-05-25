@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>互动结果</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 600px; height: 320px;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #FFF4F6 0%, #FFD6E0 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    width: 540px; background: #fff; border-radius: 20px;
+    box-shadow: 0 6px 24px rgba(231,153,176,0.2);
+    padding: 22px 26px; text-align: center;
+  }
+  .action-icon { font-size: 48px; margin-bottom: 8px; }
+  .action-name { font-size: 18px; font-weight: bold; color: #D4708A; margin-bottom: 10px; }
+  .dialogue {
+    font-size: 15px; color: #555; line-height: 1.6;
+    padding: 10px 16px; background: #FFF4F6; border-radius: 12px; margin-bottom: 14px;
+  }
+  .changes { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .change-item {
+    font-size: 13px; padding: 4px 10px; border-radius: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .change-positive { background: #E8F8E8; color: #4CAF50; }
+  .change-negative { background: #FFE8E8; color: #E57373; }
+  .change-neutral  { background: #F5F5F5; color: #999; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="action-icon">{{ emoji }}</div>
+  <div class="action-name">{{ action_name }}</div>
+  <div class="dialogue">{{ dialogue }}</div>
+  <div class="changes">
+    {% for c in changes -%}
+    <span class="change-item {{ 'change-positive' if c.type == 'positive' else 'change-negative' if c.type == 'negative' else 'change-neutral' }}">{{ c.icon }} {{ c.label }} {{ c.value }}</span>
+    {% endfor %}
+  </div>
+</div>
+</body>
+</html>
