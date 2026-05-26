@@ -27,6 +27,7 @@ from . import start_up as _
 from . import admin_stats as _admin_stats
 from . import diana_pet as _diana_pet
 from . import whateat as _whateat
+from . import storage as _storage
 from .utils import open_json, download_img
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
