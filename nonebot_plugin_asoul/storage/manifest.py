@@ -6,6 +6,7 @@
 """
 import json
 import os
+import time
 from datetime import datetime, timezone
 from threading import Lock
 from typing import Optional
@@ -53,18 +54,49 @@ def _ensure_loaded() -> dict:
 
 
 def _flush():
-    """原子写入：先写到 .tmp 再 rename，避免崩溃时损坏 manifest."""
+    """原子写入：先写到 .tmp 再 rename，避免崩溃时损坏 manifest.
+
+    Windows 上 os.replace 偶尔会因杀软/同步盘/索引服务短暂持有目标文件抛 PermissionError，
+    所以包了一层指数退避重试。最多 6 次约 1.5s 总时长，仍失败才放弃。
+    """
     data = _ensure_loaded()
     path = _manifest_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp_path = path + ".tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp_path, path)
+
+    last_err: Optional[OSError] = None
+    delay = 0.02
+    for attempt in range(6):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError as e:
+            last_err = e
+            time.sleep(delay)
+            delay *= 2
+
+    logger.warning(f"manifest 写入重试 6 次仍失败：{last_err}")
+    # 兜底：尝试直接删除 .tmp，避免下次启动残留
+    try:
+        os.remove(tmp_path)
+    except OSError:
+        pass
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def _safe_flush():
+    """flush 包装：任何异常只 warning，不上抛。
+    内存中的 manifest 已经更新，落盘失败只意味着下次启动看不到这次的更新。
+    """
+    try:
+        _flush()
+    except Exception as e:
+        logger.warning(f"manifest 落盘失败（内存仍生效）：{e}")
 
 
 # ── static 段 ──
@@ -83,7 +115,7 @@ def put_static(key: str, *, url: str, width: int, height: int, sha256_short: str
             "sha256_short": sha256_short,
             "uploaded_at": _now_iso(),
         }
-        _flush()
+        _safe_flush()
 
 
 # ── addressed 段 ──
@@ -102,7 +134,7 @@ def put_addressed(recipe_hash: str, *, key: str, url: str, width: int, height: i
             "height": height,
             "uploaded_at": _now_iso(),
         }
-        _flush()
+        _safe_flush()
 
 
 # ── 摘要（admin 命令用）──
