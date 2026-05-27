@@ -27,12 +27,13 @@ from . import start_up as _
 from . import admin_stats as _admin_stats
 from . import diana_pet as _diana_pet
 from . import whateat as _whateat
+from . import storage as _storage
 from .utils import open_json, download_img
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .eye_shadow import select_random_eyeshadow
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
-from .random_wife import get_random_wife_message
+from .random_wife import get_random_wife_md_message
 
 __plugin_meta__ = PluginMetadata(
     name="asoul插件",
@@ -152,5 +153,5 @@ async def _():
 
 @random_wife_matcher.handle()
 async def _():
-    message = get_random_wife_message()
-    await message.finish()
+    message = await get_random_wife_md_message()
+    await random_wife_matcher.finish(message)

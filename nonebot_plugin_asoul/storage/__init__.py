@@ -1,0 +1,227 @@
+"""
+@Author: star_482
+@Date: 2026/5/26
+@File: storage
+@Description: R2 对象存储模块。提供 R2Bucket（静态懒加载 + 配方寻址）+ get_bucket() 单例。
+"""
+import asyncio
+import hashlib
+import io
+import json
+import mimetypes
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Optional
+
+from nonebot.log import logger
+
+from . import manifest, r2_client
+
+# 业务前缀：调用方应通过 KEY_PREFIX[...] 取，避免硬编码
+KEY_PREFIX = {
+    # static 段：按原文件名 key
+    "fortune_base": "static/fortune/base",
+    "whateat_eat": "static/whateat/eat",
+    "whateat_drink": "static/whateat/drink",
+    "wife": "static/wife",
+    "activity": "static/activity",
+    "ui": "static/ui",
+    "eyeshadow": "static/eyeshadow",
+    # addressed 段：按 recipe 哈希 key
+    "addressed_fortune": "addressed/fortune",
+    "addressed_diana": "addressed/diana",
+    "addressed_test": "addressed/test",
+}
+
+
+def _sha256_short_bytes(data: bytes, n: int = 12) -> str:
+    return hashlib.sha256(data).hexdigest()[:n]
+
+
+def _sha256_short_file(path: Path, n: int = 12) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()[:n]
+
+
+def _recipe_hash(recipe: Any, n: int = 12) -> str:
+    canon = json.dumps(recipe, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:n]
+
+
+def _image_size(data: bytes) -> tuple[int, int]:
+    """从 bytes 读宽高。失败返回 (0, 0)，不阻塞主流程。"""
+    try:
+        from PIL import Image as PILImage
+        with PILImage.open(io.BytesIO(data)) as img:
+            return img.size
+    except Exception as e:
+        logger.warning(f"读图片宽高失败：{e}")
+        return 0, 0
+
+
+def _image_size_file(path: Path) -> tuple[int, int]:
+    try:
+        from PIL import Image as PILImage
+        with PILImage.open(path) as img:
+            return img.size
+    except Exception as e:
+        logger.warning(f"读图片宽高失败 {path}：{e}")
+        return 0, 0
+
+
+def _guess_content_type(path: Path) -> str:
+    ct, _ = mimetypes.guess_type(str(path))
+    return ct or "application/octet-stream"
+
+
+class R2Bucket:
+    def __init__(self):
+        # 进程内 inflight 锁：防止同一 hash 在并发请求下被多次上传
+        self._inflight: dict[str, asyncio.Lock] = {}
+        self._inflight_guard = asyncio.Lock()
+
+    # ── URL / Markdown 工具 ──
+
+    def public_url(self, key: str) -> str:
+        return r2_client.public_url_for(key)
+
+    def build_md_image(self, url: str, width: int, height: int, alt: str = "") -> str:
+        """生成 QQ Markdown 图片字面量：![alt #Wpx #Hpx](url)。宽高必填。"""
+        return f"![{alt} #{width}px #{height}px]({url})"
+
+    # ── 低级 API ──
+
+    async def head(self, key: str) -> bool:
+        try:
+            return await asyncio.to_thread(r2_client.head_object_sync, key)
+        except Exception as e:
+            logger.warning(f"R2 head 失败 key={key}：{e}")
+            return False
+
+    async def delete(self, key: str) -> bool:
+        try:
+            await asyncio.to_thread(r2_client.delete_object_sync, key)
+            return True
+        except Exception as e:
+            logger.warning(f"R2 delete 失败 key={key}：{e}")
+            return False
+
+    async def upload_bytes(
+        self, data: bytes, key: str, *, content_type: str = "image/png"
+    ) -> Optional[str]:
+        try:
+            await asyncio.to_thread(r2_client.put_object_sync, key, data, content_type)
+            return self.public_url(key)
+        except Exception as e:
+            logger.warning(f"R2 upload_bytes 失败 key={key}：{e}")
+            return None
+
+    # ── 主路径 1：静态文件懒加载 ──
+
+    async def get_or_upload_file(
+        self, local_path: Path, *, prefix: str
+    ) -> Optional[str]:
+        local_path = Path(local_path)
+        if not local_path.exists():
+            logger.warning(f"本地文件不存在：{local_path}")
+            return None
+
+        key = f"{prefix}/{local_path.name}"
+        local_sha = _sha256_short_file(local_path)
+
+        cached = manifest.get_static(key)
+        if cached and cached.get("sha256_short") == local_sha:
+            return cached["url"]
+
+        # 未命中或 sha 漂移 → 上传
+        try:
+            data = await asyncio.to_thread(local_path.read_bytes)
+            content_type = _guess_content_type(local_path)
+            await asyncio.to_thread(
+                r2_client.put_object_sync, key, data, content_type
+            )
+        except Exception as e:
+            logger.warning(f"R2 upload_file 失败 path={local_path} key={key}：{e}")
+            return None
+
+        width, height = _image_size_file(local_path)
+        url = self.public_url(key)
+        manifest.put_static(
+            key, url=url, width=width, height=height, sha256_short=local_sha
+        )
+        return url
+
+    # ── 主路径 2：配方寻址（render-on-miss）──
+
+    async def get_or_render(
+        self,
+        recipe: Any,
+        producer: Callable[[], Awaitable[bytes]],
+        *,
+        prefix: str,
+        ext: str = "png",
+    ) -> Optional[str]:
+        h = _recipe_hash(recipe)
+
+        # 命中：纯本地查表，0 网络、0 渲染
+        cached = manifest.get_addressed(h)
+        if cached:
+            return cached["url"]
+
+        # 同 hash 并发请求合流
+        async with self._inflight_guard:
+            lock = self._inflight.get(h)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._inflight[h] = lock
+
+        async with lock:
+            # 双检：等锁期间可能已被别的协程上传完
+            cached = manifest.get_addressed(h)
+            if cached:
+                return cached["url"]
+
+            try:
+                data = await producer()
+            except Exception as e:
+                logger.warning(f"render producer 失败 hash={h}：{e}")
+                return None
+
+            key = f"{prefix}/{h}.{ext}"
+            content_type = f"image/{ext}"
+            try:
+                await asyncio.to_thread(
+                    r2_client.put_object_sync, key, data, content_type
+                )
+            except Exception as e:
+                logger.warning(f"R2 get_or_render upload 失败 key={key}：{e}")
+                return None
+
+            width, height = _image_size(data)
+            url = self.public_url(key)
+            manifest.put_addressed(h, key=key, url=url, width=width, height=height)
+
+            # 释放 inflight 锁记录（保留锁本身让正在 await 的协程跑完）
+            async with self._inflight_guard:
+                self._inflight.pop(h, None)
+
+            return url
+
+
+_bucket: Optional[R2Bucket] = None
+
+
+def get_bucket() -> R2Bucket:
+    global _bucket
+    if _bucket is None:
+        _bucket = R2Bucket()
+    return _bucket
+
+
+# import admin 触发其中的 on_command 注册（必须放在 get_bucket 定义之后，因为 admin.py 用 get_bucket）
+from . import admin as _admin  # noqa: E402,F401
+
+
+__all__ = ["R2Bucket", "get_bucket", "KEY_PREFIX"]

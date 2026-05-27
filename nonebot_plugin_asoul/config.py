@@ -19,5 +19,13 @@ class Config(BaseModel):
     whateat_cd: int = 10
     whateat_max: int = 0
 
+    #R2-bucket
+    r2_token: str
+    r2_id: str
+    r2_key: str
+    r2_url: str
+    r2_bucket_name: str = "diana-image"
+    r2_public_url: str
+
 
 config = get_plugin_config(Config)

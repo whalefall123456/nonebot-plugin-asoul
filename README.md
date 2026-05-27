@@ -27,6 +27,10 @@
 
 - `/添加日程` — 发图片即更新本周日程图；发 JSON 文本即合并到 `activity.json`
 - `/统计总览`、`/统计排行`、`/统计明细` — 查看插件命令使用情况
+- `/图床自检` — 验证 R2 凭据 / endpoint / 公网 URL 三件套
+- `/图床同步 [前缀]` — 把本地静态图懒加载到 R2，无参数则同步默认前缀（吃喝、抽老婆、眼影）
+- `/图床查询 <key>` — HEAD 检查并返回公网 URL
+- `/图床清单` — 输出已上传对象的分前缀汇总
 
 ---
 
@@ -40,11 +44,11 @@
 
 ```bash
 pip install nonebot2 nonebot-adapter-qq nonebot-plugin-alconna
-pip install httpx pillow pyyaml jinja2 playwright
+pip install httpx pillow pyyaml jinja2 playwright boto3
 playwright install chromium
 ```
 
-> `playwright + chromium` 仅在使用嘉然宠物相关图片渲染时需要。
+> `playwright + chromium` 仅在使用嘉然宠物相关图片渲染时需要；`boto3` 仅在使用 R2 图床功能时需要。
 
 ### 2. 安装插件
 
@@ -92,6 +96,11 @@ data/
 | `home_url` | 上游仓库地址 | 关于页链接 |
 | `whateat_cd` | `10` | 吃 / 喝什么的全局冷却（秒） |
 | `whateat_max` | `0` | 每用户每日上限，`0` 表示不限 |
+| `r2_id` / `r2_key` | — | Cloudflare R2 的 Access Key ID / Secret（S3 兼容凭据） |
+| `r2_url` | — | R2 endpoint，形如 `https://<account_id>.r2.cloudflarestorage.com` |
+| `r2_bucket_name` | `diana-image` | R2 桶名 |
+| `r2_public_url` | — | 公网访问域（自定义域或 `*.r2.dev`），用于拼出图片直链 |
+| `r2_token` | — | 预留字段（boto3 流程不使用，留给将来切 R2 REST API） |
 
 > 嘉然宠物相关配置（`diana_data_dir` / `diana_assets_dir` / `diana_saves_dir`）随该模块开发进展再行说明。
 
@@ -120,6 +129,11 @@ nonebot_plugin_asoul/
 ├── whateat.py           # 今天吃/喝什么 (Alconna shortcut)
 ├── diana_pet.py         # 嘉然宠物接入层（开发中）
 ├── utils.py             # JSON 读写、图片下载、抽签合成
+├── storage/             # Cloudflare R2 图床（boto3）
+│   ├── r2_client.py     # boto3 S3 兼容客户端单例
+│   ├── manifest.py      # 本地缓存索引（static / addressed 两段）
+│   ├── admin.py         # SUPERUSER 管理命令
+│   └── __init__.py      # R2Bucket 公开 API：get_or_upload_file / get_or_render
 └── diana/               # 嘉然宠物核心，独立子包（开发中）
 ```
 
