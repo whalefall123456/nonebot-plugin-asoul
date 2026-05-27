@@ -135,7 +135,26 @@ class R2Bucket:
         if cached and cached.get("sha256_short") == local_sha:
             return cached["url"]
 
-        # 未命中或 sha 漂移 → 上传
+        # sha 漂移（manifest 命中但哈希不匹配）→ 无条件重新上传
+        if cached:
+            return await self._do_upload_file(local_path, key, local_sha)
+
+        # manifest miss → 尝试从 R2 恢复（HEAD 检查），避免重复上传
+        exists = await self.head(key)
+        if exists:
+            width, height = _image_size_file(local_path)
+            url = self.public_url(key)
+            manifest.put_static(
+                key, url=url, width=width, height=height, sha256_short=local_sha
+            )
+            return url
+
+        return await self._do_upload_file(local_path, key, local_sha)
+
+    async def _do_upload_file(
+        self, local_path: Path, key: str, local_sha: str
+    ) -> Optional[str]:
+        """无条件上传文件到 R2 并写 manifest。"""
         try:
             data = await asyncio.to_thread(local_path.read_bytes)
             content_type = _guess_content_type(local_path)
