@@ -91,6 +91,7 @@ def get_about_xiaoran_markdown():
         "> 关注嘉然，顿顿解馋！\n\n"
         "## 小然 Bot\n"
         "面向 A-SOUL 和嘉然粉丝的 QQ 群助手，提供直播日程、每日运势、小作文等快捷功能。\n\n"
+        "想参与小然 Bot 的建设？[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的创意~\n\n"
     )
     keyboard = MessageKeyboard(
         content=InlineKeyboard(
