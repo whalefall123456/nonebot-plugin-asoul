@@ -140,7 +140,8 @@ def _build_record(event: Event, matcher: Matcher, state: T_State) -> Optional[di
             return None
         raw_command = msg_text
         parts = msg_text.split()
-        command = [parts[0]] if parts else [msg_text]
+        cmd_name = parts[0].lstrip("/") if parts else msg_text.lstrip("/")
+        command = [cmd_name]
         command_arg = None
 
     now = datetime.now().astimezone()
