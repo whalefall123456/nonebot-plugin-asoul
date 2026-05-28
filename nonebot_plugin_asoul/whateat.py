@@ -88,10 +88,10 @@ def _random_pic(menu_type: Literal["drink", "eat"]) -> tuple[Path, str]:
 
 async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, matcher):
     """eat 和 drink 的共用发送逻辑。"""
-    # CD 和上限检查已在各自 handler 中完成
     bucket = get_bucket()
     prefix = KEY_PREFIX["whateat_eat"] if menu_type == "eat" else KEY_PREFIX["whateat_drink"]
     command = "/今天吃什么" if menu_type == "eat" else "/今天喝什么"
+    food_word = "美食" if menu_type == "eat" else "饮品"
 
     pic_path, pic_name = _random_pic(menu_type)
     url = await bucket.get_or_upload_file(pic_path, prefix=prefix)
@@ -102,7 +102,7 @@ async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, ma
         w = entry.get("width", 0) if entry else 0
         h = entry.get("height", 0) if entry else 0
         md_img = bucket.build_md_image(url, w, h, pic_name)
-        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{md_img}"
+        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{md_img}\n\n\n没有心仪的{food_word}？[点击投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ)"
         keyboard = MessageKeyboard(
             content=InlineKeyboard(
                 rows=[InlineKeyboardRow(buttons=[
