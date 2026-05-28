@@ -119,7 +119,7 @@ async def _(event: GroupAtMessageCreateEvent):
         if "url" in result:
             bucket = get_bucket()
             md_img = bucket.build_md_image(result["url"], result["w"], result["h"], result["title"])
-            md = f"## ✨今日运势✨\n\n<@{uid}>\n\n{md_img}"
+            md = f"<@{uid}>\n### ✨今日运势✨\n\n{md_img}"
             keyboard = MessageKeyboard(
                 content=InlineKeyboard(
                     rows=[InlineKeyboardRow(buttons=[
@@ -142,7 +142,7 @@ async def _(event: GroupAtMessageCreateEvent):
         if info and info.get("url"):
             bucket = get_bucket()
             md_img = bucket.build_md_image(info["url"], info["w"], info["h"])
-            md = f"## 你今天抽过签了，再给你看一次哦🤗\n\n<@{uid}>\n\n{md_img}"
+            md = f"<@{uid}>\n### 你今天抽过签了，再给你看一次哦🤗\n\n{md_img}"
             await daily_fortune.finish(MessageSegment.markdown(md))
         else:
             message = UniMessage(Text("你今天抽过签了，再给你看一次哦🤗\n"))
