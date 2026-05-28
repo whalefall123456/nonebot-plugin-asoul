@@ -81,7 +81,8 @@ async def _():
     entry = random.choice(list(data.values()))
     title = entry["title"]
     content = entry["content"]
-    md = f"# {title}\n\n{content}"
+    quoted = "\n".join(f"> {line}" if line else ">" for line in content.split("\n"))
+    md = f"## {title}\n\n{quoted}\n\n\n你也想发病？[点我投稿]({config.home_url}) 分享你的小作文吧~"
     keyboard = MessageKeyboard(
         content=InlineKeyboard(
             rows=[
