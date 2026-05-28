@@ -4,6 +4,7 @@
 @File: utils 
 @Description:
 """
+import io
 import os
 import json
 import random
@@ -45,44 +46,42 @@ def save_json(filename: str, data: dict):
         raise
 
 
-def drawing(gid: str, uid: str, title: str, text):
-    # 1. Random choice a base image
-    imgdir = os.path.join(config.data_path, "resource/img/asoul")
-    img_list = os.listdir(imgdir)
-    # logger.info(" ".join(img_list))
-    imgPath = os.path.join(imgdir, random.choice(img_list))
+_BASE_IMG_DIR = os.path.join(config.data_path, "resource/img/asoul")
+_FONT_TITLE = os.path.join(config.data_path, "resource/font/Mamelon.otf")
+_FONT_TEXT = os.path.join(config.data_path, "resource/font/sakura.ttf")
+
+
+def pick_fortune_base() -> str:
+    """随机选择一张抽签底图，返回文件名。"""
+    return random.choice(os.listdir(_BASE_IMG_DIR))
+
+
+def drawing_to_bytes(base_name: str, title: str, text: str):
+    """用指定底图合成抽签图，返回 (png_bytes, width, height)。"""
+    imgPath = os.path.join(_BASE_IMG_DIR, base_name)
     img: Image.Image = Image.open(imgPath).convert("RGB")
+    w, h = img.size
     draw = ImageDraw.Draw(img)
-    # 3. Draw
+
+    # 标题
     font_size = 45
     color = "#F5F5F5"
     image_font_center = [140, 99]
-    fontPath = {
-        "title": f"{config.data_path}/resource/font/Mamelon.otf",
-        "text": f"{config.data_path}/resource/font/sakura.ttf",
-    }
-    ttfront = ImageFont.truetype(fontPath["title"], font_size)
-    # font_length = ttfront.getsize(title)
+    ttfront = ImageFont.truetype(_FONT_TITLE, font_size)
     left, top, right, bottom = ttfront.getbbox(title)
     text_width = right - left
     text_height = bottom - top
     draw.text(
-        (
-            image_font_center[0] - text_width / 2,
-            image_font_center[1] - text_height / 2,
-        ),
-        title,
-        fill=color,
-        font=ttfront,
+        (image_font_center[0] - text_width / 2, image_font_center[1] - text_height / 2),
+        title, fill=color, font=ttfront,
     )
 
-    # Text rendering
+    # 正文
     font_size = 25
     color = "#323232"
     image_font_center = [140, 297]
-    ttfront = ImageFont.truetype(fontPath["text"], font_size)
+    ttfront = ImageFont.truetype(_FONT_TEXT, font_size)
     slices, result = decrement(text)
-
     for i in range(slices):
         font_height: int = len(result[i]) * (font_size + 4)
         textVertical: str = "\n".join(result[i])
@@ -95,12 +94,20 @@ def drawing(gid: str, uid: str, title: str, text):
         y: int = int(image_font_center[1] - font_height / 2)
         draw.text((x, y), textVertical, fill=color, font=ttfront)
 
-    # Save
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue(), w, h
+
+
+def drawing(gid: str, uid: str, title: str, text):
+    """降级路径：随机底图合成后写盘，返回本地路径。"""
+    base_name = pick_fortune_base()
+    data, w, h = drawing_to_bytes(base_name, title, text)
     outDir = os.path.join(config.data_path, "resource/out")
-    if not os.path.exists(outDir):
-        os.makedirs(outDir, exist_ok=True)
+    os.makedirs(outDir, exist_ok=True)
     outPath = os.path.join(outDir, f"{gid}_{uid}.png")
-    img.save(outPath)
+    with open(outPath, "wb") as f:
+        f.write(data)
     return outPath
 
 

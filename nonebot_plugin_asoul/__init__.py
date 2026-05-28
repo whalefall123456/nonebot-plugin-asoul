@@ -43,6 +43,7 @@ from .activity import save_img_activity, save_json_activity, get_relative_conten
 from .eye_shadow import select_random_eyeshadow
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
 from .random_wife import get_random_wife_md_message
+from .storage import get_bucket
 
 __plugin_meta__ = PluginMetadata(
     name="asoul插件",
@@ -113,17 +114,41 @@ async def _(event: GroupAtMessageCreateEvent):
     gid = event.group_openid
     uid = event.get_user_id()
     if fortune_manager.check_data(gid, uid):
-        # 执行抽签
-        img_path = fortune_manager.do_draw(gid, uid)
-        message = UniMessage(Image(path=img_path))
-        message.append(Text("✨今日运势✨\n"))
+        result = await fortune_manager.do_draw(gid, uid)
         fortune_manager.save_data()
-        await message.send()
+        if "url" in result:
+            bucket = get_bucket()
+            md_img = bucket.build_md_image(result["url"], result["w"], result["h"], result["title"])
+            md = f"<@{uid}>\n### ✨今日运势✨\n\n{md_img}"
+            keyboard = MessageKeyboard(
+                content=InlineKeyboard(
+                    rows=[InlineKeyboardRow(buttons=[
+                        Button(
+                            id="fortune_draw",
+                            render_data=RenderData(label="我也要抽签", visited_label="我也要抽签", style=1),
+                            action=Action(type=2, permission=Permission(type=2), data="/抽签",
+                                          reply=False, enter=False, unsupport_tips="请手动发送：/抽签"),
+                        ),
+                    ])]
+                )
+            )
+            await daily_fortune.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
+        else:
+            message = UniMessage(Image(path=result["img_path"]))
+            message.append(Text("✨今日运势✨\n"))
+            await message.send()
     else:
-        message = UniMessage(Text("你今天抽过签了，再给你看一次哦🤗\n"))
-        img_path = os.path.join(config.data_path, f"resource/out/{gid}_{uid}.png")
-        message.append(Image(path=img_path))
-        await message.send()
+        info = fortune_manager.get_cached_info(gid, uid)
+        if info and info.get("url"):
+            bucket = get_bucket()
+            md_img = bucket.build_md_image(info["url"], info["w"], info["h"])
+            md = f"<@{uid}>\n### 你今天抽过签了，再给你看一次哦🤗\n\n{md_img}"
+            await daily_fortune.finish(MessageSegment.markdown(md))
+        else:
+            message = UniMessage(Text("你今天抽过签了，再给你看一次哦🤗\n"))
+            img_path = os.path.join(config.data_path, f"resource/out/{gid}_{uid}.png")
+            message.append(Image(path=img_path))
+            await message.send()
 
 
 @week_activity.handle()
