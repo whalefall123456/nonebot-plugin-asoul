@@ -1,6 +1,6 @@
 # nonebot-plugin-asoul
 
-面向 A-SOUL 及嘉然（Diana）粉丝的 NoneBot2 插件，提供发病小作文、每日运势、直播日程等功能，适配 QQ 官方机器人。
+面向 A-SOUL 及嘉然（Diana）粉丝的 NoneBot2 插件，提供发病小作文、每日运势、直播日程等功能，适配 QQ 官方机器人，基于 Cloudflare R2 图床实现 Markdown 消息。
 
 ---
 
@@ -10,13 +10,13 @@
 
 | 指令 | 别名 | 说明 |
 | --- | --- | --- |
-| `/发病小作文` | `/发病` | 随机发送一条嘉然相关的小作文 |
-| `/今日运势` | `/抽签` | 每人每日一次，生成专属运势卡片图 |
-| `/本周日程` | `/日程` | 查看今天与明天的安排，并附本周日程图 |
+| `/发病小作文` | `/发病` | 随机发送一篇嘉然小作文（Markdown 卡片） |
+| `/今日运势` | `/抽签` | 每人每日一次，生成专属运势卡（Markdown 卡片） |
+| `/本周日程` | `/日程` | 查看今天与明天的安排，附日程图 |
 | `/关于小然` | `/小然`、`/关于然然` | 嘉然 & Bot 介绍（Markdown + 内联按钮） |
-| `/抽老婆` | — | 随机抽取一张图片 |
-| `/今天吃什么` | `今天/明天/早上/晚上吃什么` 等正则匹配 | 随机推荐一张菜品图 |
-| `/今天喝什么` | 同上喝法 | 随机推荐一张饮品图 |
+| `/抽老婆` | — | 随机抽取一张图片（Markdown 卡片） |
+| `/今天吃什么` | `今/明/早/晚吃什么` 等正则匹配 | 随机推荐美食（Markdown 卡片） |
+| `/今天喝什么` | 同上喝法 | 随机推荐饮品（Markdown 卡片） |
 | `/我的id` | — | 查看自己在 QQ 官方机器人下的 openid |
 
 ### 嘉然宠物养成（开发中）
@@ -73,6 +73,7 @@ data/
 │   │   ├── fortune/              # copywriting.json（首次启动前需就位）
 │   │   ├── img/asoul/            # 抽签底图
 │   │   └── out/                  # 抽签结果输出目录（自动创建）
+│   ├── r2_manifest.json          # R2 图床上传索引（自动生成）
 │   ├── wife_img/                 # 抽老婆图片池
 │   └── stats/                    # 命令统计（自动写入）
 └── whateat_pic/
@@ -123,10 +124,11 @@ nonebot_plugin_asoul/
 ├── start_up.py          # on_startup 钩子：缺失的 quotation.json 自动下载
 ├── admin_stats.py       # 全局 pre/post processor 统计命令使用情况
 ├── activity.py          # 周日程读写
-├── fortune_manager.py   # 抽签（每日每用户每群一次）
-├── random_wife.py       # 抽老婆
+├── fortune_manager.py   # 抽签（每日每用户每群一次，R2 配方缓存）
+├── random_wife.py       # 抽老婆（Markdown 卡片）
 ├── markdown.py          # QQ Markdown + 内联键盘
-├── whateat.py           # 今天吃/喝什么 (Alconna shortcut)
+├── whateat.py           # 今天吃/喝什么（Markdown 卡片）
+├── eye_shadow.py        # 个人向功能（不上文档）
 ├── diana_pet.py         # 嘉然宠物接入层（开发中）
 ├── utils.py             # JSON 读写、图片下载、抽签合成
 ├── storage/             # Cloudflare R2 图床（boto3）
