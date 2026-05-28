@@ -131,11 +131,20 @@ def _build_record(event: Event, matcher: Matcher, state: T_State) -> Optional[di
     prefix = state.get(PREFIX_KEY) or {}
     command = prefix.get(CMD_KEY)
     raw_command = prefix.get(RAW_CMD_KEY)
+    command_arg = prefix.get(CMD_ARG_KEY)
     if not command or not raw_command:
-        return None
+        # on_alconna / AlconnaMatcher 不走 NoneBot 原生 CMD_KEY 路径，
+        # 降级从消息文本中提取命令名
+        msg_text = event.get_message().extract_plain_text().strip()
+        if not msg_text:
+            return None
+        raw_command = msg_text
+        parts = msg_text.split()
+        cmd_name = parts[0].lstrip("/") if parts else msg_text.lstrip("/")
+        command = [cmd_name]
+        command_arg = None
 
     now = datetime.now().astimezone()
-    command_arg = prefix.get(CMD_ARG_KEY)
     arg_text = command_arg.extract_plain_text() if command_arg else ""
     scene_type, scene_id = _scene_info(event)
     return {
