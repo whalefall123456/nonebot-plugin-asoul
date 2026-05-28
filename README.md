@@ -128,7 +128,6 @@ nonebot_plugin_asoul/
 ├── random_wife.py       # 抽老婆（Markdown 卡片）
 ├── markdown.py          # QQ Markdown + 内联键盘
 ├── whateat.py           # 今天吃/喝什么（Markdown 卡片）
-├── eye_shadow.py        # 个人向功能（不上文档）
 ├── diana_pet.py         # 嘉然宠物接入层（开发中）
 ├── utils.py             # JSON 读写、图片下载、抽签合成
 ├── storage/             # Cloudflare R2 图床（boto3）
