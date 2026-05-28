@@ -7,10 +7,21 @@ from typing import Literal
 
 from nonebot import get_driver
 from nonebot.adapters import Event
+from nonebot.adapters.qq import MessageSegment
+from nonebot.adapters.qq.models import (
+    Action,
+    Button,
+    InlineKeyboard,
+    InlineKeyboardRow,
+    MessageKeyboard,
+    Permission,
+    RenderData,
+)
 from nonebot_plugin_alconna import Alconna, on_alconna
 from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
 
 from .config import config
+from .storage import get_bucket, KEY_PREFIX, manifest
 
 NICKNAME = list(get_driver().config.nickname)
 BOT_NAME = NICKNAME[0] if NICKNAME else "然然"
@@ -75,6 +86,42 @@ def _random_pic(menu_type: Literal["drink", "eat"]) -> tuple[Path, str]:
     return pic_path, Path(pic_name).stem
 
 
+async def _send_whateat(menu_type: Literal["drink", "eat"], action_verb: str, matcher):
+    """eat 和 drink 的共用发送逻辑。"""
+    # CD 和上限检查已在各自 handler 中完成
+    bucket = get_bucket()
+    prefix = KEY_PREFIX["whateat_eat"] if menu_type == "eat" else KEY_PREFIX["whateat_drink"]
+    command = "/今天吃什么" if menu_type == "eat" else "/今天喝什么"
+
+    pic_path, pic_name = _random_pic(menu_type)
+    url = await bucket.get_or_upload_file(pic_path, prefix=prefix)
+
+    if url is not None:
+        key = f"{prefix}/{pic_path.name}"
+        entry = manifest.get_static(key)
+        w = entry.get("width", 0) if entry else 0
+        h = entry.get("height", 0) if entry else 0
+        md_img = bucket.build_md_image(url, w, h, pic_name)
+        md = f"### 🎉{BOT_NAME}建议你{action_verb}🎉\n\n**{pic_name}**\n\n{md_img}"
+        keyboard = MessageKeyboard(
+            content=InlineKeyboard(
+                rows=[InlineKeyboardRow(buttons=[
+                    Button(
+                        id=f"whateat_{menu_type}_again",
+                        render_data=RenderData(label=f"换一个", visited_label=f"换一个", style=1),
+                        action=Action(type=2, permission=Permission(type=2), data=command,
+                                      reply=False, enter=True, unsupport_tips=f"请手动发送：{command}"),
+                    ),
+                ])]
+            )
+        )
+        await matcher.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
+    else:
+        msg = UniMessage.text(f"🎉{BOT_NAME}建议你{action_verb}🎉\n{pic_name}")
+        msg.append(Image(path=str(pic_path)))
+        await msg.send()
+
+
 eat_pic_matcher = on_alconna(
     Alconna("今天吃什么"),
     use_cmd_start=True,
@@ -102,10 +149,7 @@ async def handle_eat(event: Event):
     in_cd, remain = _check_cd()
     if in_cd:
         await UniMessage.text(f"cd冷却中, 还有{remain:.2f}秒").finish()
-    pic_path, pic_name = _random_pic("eat")
-    msg = UniMessage.text(f"🎉{BOT_NAME}建议你吃🎉\n{pic_name}")
-    msg.append(Image(path=str(pic_path)))
-    await msg.finish()
+    await _send_whateat("eat", "吃", eat_pic_matcher)
 
 
 @drink_pic_matcher.handle()
@@ -115,7 +159,4 @@ async def handle_drink(event: Event):
     in_cd, remain = _check_cd()
     if in_cd:
         await UniMessage.text(f"cd冷却中, 还有{remain:.2f}秒").finish()
-    pic_path, pic_name = _random_pic("drink")
-    msg = UniMessage.text(f"🎉{BOT_NAME}建议你喝🎉\n{pic_name}")
-    msg.append(Image(path=str(pic_path)))
-    await msg.finish()
+    await _send_whateat("drink", "喝", drink_pic_matcher)
