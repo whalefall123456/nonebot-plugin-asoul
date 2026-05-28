@@ -82,7 +82,7 @@ async def _():
     title = entry["title"]
     content = entry["content"]
     quoted = "\n".join(f"> {line}" if line else ">" for line in content.split("\n"))
-    md = f"## {title}\n\n{quoted}\n\n\n你也想发病？[点我投稿]({config.home_url}) 分享你的小作文吧~"
+    md = f"## {title}\n\n{quoted}\n\n\n你也想发病？[点我投稿](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ) 分享你的小作文吧~"
     keyboard = MessageKeyboard(
         content=InlineKeyboard(
             rows=[
