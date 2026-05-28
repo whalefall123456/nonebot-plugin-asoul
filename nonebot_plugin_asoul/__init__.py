@@ -95,10 +95,10 @@ async def _():
                             action=Action(
                                 type=2,
                                 permission=Permission(type=2),
-                                data="/发病",
+                                data="/发病小作文",
                                 reply=False,
                                 enter=False,
-                                unsupport_tips="请手动发送：/发病",
+                                unsupport_tips="请手动发送：/发病小作文",
                             ),
                         ),
                     ]
@@ -126,8 +126,8 @@ async def _(event: GroupAtMessageCreateEvent):
                         Button(
                             id="fortune_draw",
                             render_data=RenderData(label="我也要抽签", visited_label="我也要抽签", style=1),
-                            action=Action(type=2, permission=Permission(type=2), data="/抽签",
-                                          reply=False, enter=False, unsupport_tips="请手动发送：/抽签"),
+                            action=Action(type=2, permission=Permission(type=2), data="/今日运势",
+                                          reply=False, enter=False, unsupport_tips="请手动发送：/今日运势"),
                         ),
                     ])]
                 )

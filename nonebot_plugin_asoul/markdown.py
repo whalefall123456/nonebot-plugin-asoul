@@ -67,7 +67,7 @@ def get_test_markdown():
                 InlineKeyboardRow(
                     buttons=[
                         _command_button("test_markdown", "再测一次", "/测试markdown"),
-                        _command_button("quotation", "发病一下", "/发病"),
+                        _command_button("quotation", "发病一下", "/发病小作文"),
                     ]
                 )
             ]
@@ -99,7 +99,7 @@ def get_about_xiaoran_markdown():
                     buttons=[
                         _command_button("week_activity", "本周日程", "/本周日程"),
                         _command_button("daily_fortune", "今日运势", "/今日运势"),
-                        _command_button("quotation", "发病一下", "/发病"),
+                        _command_button("quotation", "发病一下", "/发病小作文"),
                     ]
                 )
             ]
