@@ -12,6 +12,15 @@ from nonebot.internal.params import ArgPlainText
 from nonebot.log import logger
 from nonebot.adapters import Event
 from nonebot.adapters.qq import Message, MessageEvent, MessageSegment, GroupAtMessageCreateEvent
+from nonebot.adapters.qq.models import (
+    Action,
+    Button,
+    InlineKeyboard,
+    InlineKeyboardRow,
+    MessageKeyboard,
+    Permission,
+    RenderData,
+)
 from nonebot.params import CommandArg, RawCommand
 from nonebot.plugin import PluginMetadata
 from nonebot.plugin.on import on_command
@@ -67,11 +76,35 @@ async def _(event: Event):
 
 
 @quotation.handle()
-async def _(event: Event):
+async def _():
     data: dict = open_json("quotation.json")
-    data_list = list(data.values())
-    reply = random.choice(data_list)
-    await quotation.finish(reply)
+    entry = random.choice(list(data.values()))
+    title = entry["title"]
+    content = entry["content"]
+    md = f"# {title}\n\n{content}"
+    keyboard = MessageKeyboard(
+        content=InlineKeyboard(
+            rows=[
+                InlineKeyboardRow(
+                    buttons=[
+                        Button(
+                            id="quotation_again",
+                            render_data=RenderData(label="再来一篇", visited_label="再来一篇", style=1),
+                            action=Action(
+                                type=2,
+                                permission=Permission(type=2),
+                                data="/发病",
+                                reply=False,
+                                enter=False,
+                                unsupport_tips="请手动发送：/发病",
+                            ),
+                        ),
+                    ]
+                )
+            ]
+        )
+    )
+    await quotation.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
 
 
 @daily_fortune.handle()
