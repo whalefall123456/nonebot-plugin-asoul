@@ -1,15 +1,17 @@
 """
 @Author: star_482
-@Date: 2025/4/11 
-@File: fortune_manager 
+@Date: 2025/4/11
+@File: fortune_manager
 @Description:抽签相关的类和方法
 """
 import json
 import os
 import random
 from datetime import date
-from .utils import open_json, drawing
+
+from .utils import open_json, drawing, pick_fortune_base, drawing_to_bytes
 from .config import config
+from .storage import get_bucket, KEY_PREFIX, manifest, _recipe_hash
 
 
 class FortuneManager:
@@ -19,24 +21,50 @@ class FortuneManager:
         self.copywriter = open_json("resource/fortune/copywriting.json")
         self.load_data()
 
-    def check_data(self, gid, uid):
+    def check_data(self, gid, uid) -> bool:
+        """今天是否还没抽过签。"""
         if gid not in self.fortune_data:
             self.fortune_data[gid] = {}
         if uid not in self.fortune_data[gid]:
             self.fortune_data[gid][uid] = None
-        last_sign_date = self.fortune_data[gid][uid]
-        today_date = date.today()
-        if last_sign_date != today_date.isoformat():
-            # 第一次抽签或者今天第一次
-            return True
-        return False
+        entry = self.fortune_data[gid][uid]
+        if isinstance(entry, dict):
+            last_date = entry.get("date")
+        else:
+            last_date = entry
+        return last_date != date.today().isoformat()
 
-    def do_draw(self, gid, uid):
+    def get_cached_info(self, gid, uid) -> dict | None:
+        """返回已抽签用户的缓存信息 {url, w, h} 或 None。"""
+        entry = self.fortune_data.get(gid, {}).get(uid)
+        if isinstance(entry, dict) and entry.get("url"):
+            return {"url": entry["url"], "w": entry.get("w", 420), "h": entry.get("h", 420)}
+        return None
+
+    async def do_draw(self, gid, uid) -> dict:
+        """执行抽签，返回 {"url": ..., "title": ...} 或降级的 {"img_path": ..., "title": ...}。"""
         title, text = self.get_copywriting()
-        out_dir = drawing(gid, uid, title, text)
-        today_date = date.today()
-        self.fortune_data[gid][uid] = today_date.isoformat()
-        return out_dir
+        base_name = pick_fortune_base()
+        recipe = {"v": 1, "base": base_name, "title": title, "text": text}
+        today_date = date.today().isoformat()
+
+        async def producer():
+            data, w, h = drawing_to_bytes(base_name, title, text)
+            return data
+
+        bucket = get_bucket()
+        url = await bucket.get_or_render(recipe, producer, prefix=KEY_PREFIX["addressed_fortune"])
+
+        if url is not None:
+            entry = manifest.get_addressed(_recipe_hash(recipe))
+            img_w = entry.get("width", 420) if entry else 420
+            img_h = entry.get("height", 420) if entry else 420
+            self.fortune_data[gid][uid] = {"date": today_date, "url": url, "w": img_w, "h": img_h}
+            return {"url": url, "title": title, "w": img_w, "h": img_h}
+        else:
+            img_path = drawing(gid, uid, title, text)
+            self.fortune_data[gid][uid] = {"date": today_date}
+            return {"img_path": img_path, "title": title}
 
     def get_copywriting(self):
         """
