@@ -101,7 +101,12 @@ def get_about_xiaoran_markdown():
                         _command_button("daily_fortune", "今日运势", "/今日运势"),
                         _command_button("quotation", "发病一下", "/发病小作文"),
                     ]
-                )
+                ),
+                InlineKeyboardRow(
+                    buttons=[
+                        _link_button("submit", "点我投稿", "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"),
+                    ]
+                ),
             ]
         )
     )
