@@ -92,13 +92,17 @@ class R2Bucket:
         return f"![{alt} #{width}px #{height}px]({url})"
 
     async def _warm_cdn(self, url: str):
-        """后台异步预热 CDN：GET 公网 URL，失败静默忽略。"""
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=15.0) as hc:
-                await hc.get(url)
-        except Exception:
-            pass
+        """预热 CDN：GET 公网 URL 触发边缘节点缓存，重试 2 次。"""
+        import httpx
+        last_err = None
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as hc:
+                    await hc.get(url)
+                return
+            except Exception as e:
+                last_err = e
+        logger.warning(f"CDN 预热失败 url={url}: {last_err}")
 
     # ── 低级 API ──
 
