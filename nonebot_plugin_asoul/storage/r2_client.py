@@ -52,14 +52,14 @@ def reset_client():
 
 # ── 同步底层操作（异常会上抛，由调用方 try/except 转为 None）──
 
-def put_object_sync(key: str, data: bytes, content_type: str):
-    client = get_client()
-    client.put_object(
-        Bucket=config.r2_bucket_name,
-        Key=key,
-        Body=data,
-        ContentType=content_type,
+def put_object_sync(key: str, data: bytes, content_type: str, metadata: dict | None = None):
+    kwargs = dict(
+        Bucket=config.r2_bucket_name, Key=key, Body=data, ContentType=content_type,
     )
+    if metadata:
+        kwargs["Metadata"] = {k: str(v) for k, v in metadata.items()}
+    client = get_client()
+    client.put_object(**kwargs)
 
 
 def head_object_sync(key: str) -> bool:
@@ -75,6 +75,22 @@ def head_object_sync(key: str) -> bool:
         status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
         if code in ("404", "NoSuchKey", "NotFound") or status == 404:
             return False
+        raise
+
+
+def head_object_meta_sync(key: str) -> dict | None:
+    """HEAD 对象并返回用户自定义元数据，不存在返回 None。"""
+    from botocore.exceptions import ClientError
+
+    client = get_client()
+    try:
+        resp = client.head_object(Bucket=config.r2_bucket_name, Key=key)
+        return resp.get("Metadata") or {}
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if code in ("404", "NoSuchKey", "NotFound") or status == 404:
+            return None
         raise
 
 
