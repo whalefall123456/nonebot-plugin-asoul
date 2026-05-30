@@ -91,6 +91,15 @@ class R2Bucket:
         """生成 QQ Markdown 图片字面量：![alt #Wpx #Hpx](url)。宽高必填。"""
         return f"![{alt} #{width}px #{height}px]({url})"
 
+    async def _warm_cdn(self, url: str):
+        """后台异步预热 CDN：GET 公网 URL，失败静默忽略。"""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as hc:
+                await hc.get(url)
+        except Exception:
+            pass
+
     # ── 低级 API ──
 
     async def head(self, key: str) -> bool:
@@ -139,10 +148,11 @@ class R2Bucket:
         if cached:
             return await self._do_upload_file(local_path, key, local_sha)
 
-        # manifest miss → 尝试从 R2 恢复（HEAD 检查），避免重复上传
-        exists = await self.head(key)
-        if exists:
-            width, height = _image_size_file(local_path)
+        # manifest miss → 尝试从 R2 恢复（HEAD 读元数据），避免重复上传
+        meta = await asyncio.to_thread(r2_client.head_object_meta_sync, key)
+        if meta is not None:
+            width = int(meta.get("width", 420))
+            height = int(meta.get("height", 420))
             url = self.public_url(key)
             manifest.put_static(
                 key, url=url, width=width, height=height, sha256_short=local_sha
@@ -158,14 +168,15 @@ class R2Bucket:
         try:
             data = await asyncio.to_thread(local_path.read_bytes)
             content_type = _guess_content_type(local_path)
+            width, height = _image_size_file(local_path)
             await asyncio.to_thread(
-                r2_client.put_object_sync, key, data, content_type
+                r2_client.put_object_sync, key, data, content_type,
+                metadata={"width": width, "height": height},
             )
         except Exception as e:
             logger.warning(f"R2 upload_file 失败 path={local_path} key={key}：{e}")
             return None
 
-        width, height = _image_size_file(local_path)
         url = self.public_url(key)
         manifest.put_static(
             key, url=url, width=width, height=height, sha256_short=local_sha
@@ -202,25 +213,39 @@ class R2Bucket:
             if cached:
                 return cached["url"]
 
+            # manifest miss → 尝试从 R2 恢复（HEAD 读元数据），跳过重复渲染
+            key = f"{prefix}/{h}.{ext}"
+            meta = await asyncio.to_thread(r2_client.head_object_meta_sync, key)
+            if meta is not None:
+                img_w = int(meta.get("width", 420))
+                img_h = int(meta.get("height", 420))
+                url = self.public_url(key)
+                manifest.put_addressed(h, key=key, url=url, width=img_w, height=img_h)
+                return url
+
             try:
                 data = await producer()
             except Exception as e:
                 logger.warning(f"render producer 失败 hash={h}：{e}")
                 return None
 
-            key = f"{prefix}/{h}.{ext}"
             content_type = f"image/{ext}"
+            width, height = _image_size(data)
             try:
                 await asyncio.to_thread(
-                    r2_client.put_object_sync, key, data, content_type
+                    r2_client.put_object_sync, key, data, content_type,
+                    metadata={"width": width, "height": height},
                 )
             except Exception as e:
                 logger.warning(f"R2 get_or_render upload 失败 key={key}：{e}")
                 return None
 
-            width, height = _image_size(data)
             url = self.public_url(key)
             manifest.put_addressed(h, key=key, url=url, width=width, height=height)
+
+            # 预热 CDN：GET 公网 URL 触发边缘节点回源缓存。
+            # await 只阻塞当前 handler task，不影响其他用户的消息处理。
+            await self._warm_cdn(url)
 
             # 释放 inflight 锁记录（保留锁本身让正在 await 的协程跑完）
             async with self._inflight_guard:
