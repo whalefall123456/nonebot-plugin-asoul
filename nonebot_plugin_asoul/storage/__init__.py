@@ -2,7 +2,7 @@
 @Author: star_482
 @Date: 2026/5/26
 @File: storage
-@Description: R2 对象存储模块。提供 R2Bucket（静态懒加载 + 配方寻址）+ get_bucket() 单例。
+@Description: COS 对象存储模块。提供 COSBucket（静态懒加载 + 配方寻址）+ get_bucket() 单例。
 """
 import asyncio
 import hashlib
@@ -14,7 +14,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from nonebot.log import logger
 
-from . import manifest, r2_client
+from . import manifest, cos_client
 
 # 业务前缀：调用方应通过 KEY_PREFIX[...] 取，避免硬编码
 KEY_PREFIX = {
@@ -76,7 +76,7 @@ def _guess_content_type(path: Path) -> str:
     return ct or "application/octet-stream"
 
 
-class R2Bucket:
+class COSBucket:
     def __init__(self):
         # 进程内 inflight 锁：防止同一 hash 在并发请求下被多次上传
         self._inflight: dict[str, asyncio.Lock] = {}
@@ -85,7 +85,7 @@ class R2Bucket:
     # ── URL / Markdown 工具 ──
 
     def public_url(self, key: str) -> str:
-        return r2_client.public_url_for(key)
+        return cos_client.public_url_for(key)
 
     def build_md_image(self, url: str, width: int, height: int, alt: str = "") -> str:
         """生成 QQ Markdown 图片字面量：![alt #Wpx #Hpx](url)。宽高必填。"""
@@ -95,27 +95,27 @@ class R2Bucket:
 
     async def head(self, key: str) -> bool:
         try:
-            return await asyncio.to_thread(r2_client.head_object_sync, key)
+            return await asyncio.to_thread(cos_client.head_object_sync, key)
         except Exception as e:
-            logger.warning(f"R2 head 失败 key={key}：{e}")
+            logger.warning(f"COS head 失败 key={key}：{e}")
             return False
 
     async def delete(self, key: str) -> bool:
         try:
-            await asyncio.to_thread(r2_client.delete_object_sync, key)
+            await asyncio.to_thread(cos_client.delete_object_sync, key)
             return True
         except Exception as e:
-            logger.warning(f"R2 delete 失败 key={key}：{e}")
+            logger.warning(f"COS delete 失败 key={key}：{e}")
             return False
 
     async def upload_bytes(
         self, data: bytes, key: str, *, content_type: str = "image/png"
     ) -> Optional[str]:
         try:
-            await asyncio.to_thread(r2_client.put_object_sync, key, data, content_type)
+            await asyncio.to_thread(cos_client.put_object_sync, key, data, content_type)
             return self.public_url(key)
         except Exception as e:
-            logger.warning(f"R2 upload_bytes 失败 key={key}：{e}")
+            logger.warning(f"COS upload_bytes 失败 key={key}：{e}")
             return None
 
     # ── 主路径 1：静态文件懒加载 ──
@@ -139,10 +139,11 @@ class R2Bucket:
         if cached:
             return await self._do_upload_file(local_path, key, local_sha)
 
-        # manifest miss → 尝试从 R2 恢复（HEAD 检查），避免重复上传
-        exists = await self.head(key)
-        if exists:
-            width, height = _image_size_file(local_path)
+        # manifest miss → 尝试从 COS 恢复（HEAD 读元数据），避免重复上传
+        meta = await asyncio.to_thread(cos_client.head_object_meta_sync, key)
+        if meta is not None:
+            width = int(meta.get("width", 420))
+            height = int(meta.get("height", 420))
             url = self.public_url(key)
             manifest.put_static(
                 key, url=url, width=width, height=height, sha256_short=local_sha
@@ -154,18 +155,19 @@ class R2Bucket:
     async def _do_upload_file(
         self, local_path: Path, key: str, local_sha: str
     ) -> Optional[str]:
-        """无条件上传文件到 R2 并写 manifest。"""
+        """无条件上传文件到 COS 并写 manifest。"""
         try:
             data = await asyncio.to_thread(local_path.read_bytes)
             content_type = _guess_content_type(local_path)
+            width, height = _image_size_file(local_path)
             await asyncio.to_thread(
-                r2_client.put_object_sync, key, data, content_type
+                cos_client.put_object_sync, key, data, content_type,
+                metadata={"width": width, "height": height},
             )
         except Exception as e:
-            logger.warning(f"R2 upload_file 失败 path={local_path} key={key}：{e}")
+            logger.warning(f"COS upload_file 失败 path={local_path} key={key}：{e}")
             return None
 
-        width, height = _image_size_file(local_path)
         url = self.public_url(key)
         manifest.put_static(
             key, url=url, width=width, height=height, sha256_short=local_sha
@@ -202,23 +204,33 @@ class R2Bucket:
             if cached:
                 return cached["url"]
 
+            # manifest miss → 尝试从 COS 恢复（HEAD 读元数据），跳过重复渲染
+            key = f"{prefix}/{h}.{ext}"
+            meta = await asyncio.to_thread(cos_client.head_object_meta_sync, key)
+            if meta is not None:
+                img_w = int(meta.get("width", 420))
+                img_h = int(meta.get("height", 420))
+                url = self.public_url(key)
+                manifest.put_addressed(h, key=key, url=url, width=img_w, height=img_h)
+                return url
+
             try:
                 data = await producer()
             except Exception as e:
                 logger.warning(f"render producer 失败 hash={h}：{e}")
                 return None
 
-            key = f"{prefix}/{h}.{ext}"
             content_type = f"image/{ext}"
+            width, height = _image_size(data)
             try:
                 await asyncio.to_thread(
-                    r2_client.put_object_sync, key, data, content_type
+                    cos_client.put_object_sync, key, data, content_type,
+                    metadata={"width": width, "height": height},
                 )
             except Exception as e:
-                logger.warning(f"R2 get_or_render upload 失败 key={key}：{e}")
+                logger.warning(f"COS get_or_render upload 失败 key={key}：{e}")
                 return None
 
-            width, height = _image_size(data)
             url = self.public_url(key)
             manifest.put_addressed(h, key=key, url=url, width=width, height=height)
 
@@ -229,13 +241,13 @@ class R2Bucket:
             return url
 
 
-_bucket: Optional[R2Bucket] = None
+_bucket: Optional[COSBucket] = None
 
 
-def get_bucket() -> R2Bucket:
+def get_bucket() -> COSBucket:
     global _bucket
     if _bucket is None:
-        _bucket = R2Bucket()
+        _bucket = COSBucket()
     return _bucket
 
 
@@ -243,4 +255,4 @@ def get_bucket() -> R2Bucket:
 from . import admin as _admin  # noqa: E402,F401
 
 
-__all__ = ["R2Bucket", "get_bucket", "KEY_PREFIX"]
+__all__ = ["COSBucket", "get_bucket", "KEY_PREFIX"]

@@ -19,13 +19,14 @@ class Config(BaseModel):
     whateat_cd: int = 10
     whateat_max: int = 0
 
-    #R2-bucket
-    r2_token: str
-    r2_id: str
-    r2_key: str
-    r2_url: str
-    r2_bucket_name: str = "diana-image"
-    r2_public_url: str
+    # 对象存储（腾讯云 COS，S3 兼容协议；也可填其他 S3 兼容存储）
+    cos_id: str
+    cos_key: str
+    cos_url: str
+    cos_bucket_name: str = "diana-image"
+    cos_public_url: str
+    # region：COS 必须填实际区域（如 ap-guangzhou），否则 SigV4 签名失败
+    cos_region: str = "ap-guangzhou"
 
 
 config = get_plugin_config(Config)
