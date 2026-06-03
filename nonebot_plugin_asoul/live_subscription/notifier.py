@@ -42,8 +42,11 @@ class Notifier:
         if not groups:
             return
 
-        area = f"{info.parent_area_name}/{info.area_name}".strip("/")
-        md = f"## {info.uname} 开播啦！\n\n**{info.title}**\n\n分区：{area}"
+        md = (
+            f"## {info.uname} 开播啦！\n\n"
+            f"**{info.title}**\n\n"
+            f"![#1920px #1080px]({info.cover})"
+        )
         keyboard = MessageKeyboard(
             content=InlineKeyboard(
                 rows=[InlineKeyboardRow(buttons=[_mk_link_button(info.url)])]
