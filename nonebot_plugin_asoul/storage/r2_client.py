@@ -16,7 +16,11 @@ _lock = Lock()
 
 
 def _build_client():
-    """懒构造 boto3 S3 客户端。延迟导入 boto3，避免插件加载时强依赖未安装的依赖。"""
+    """懒构造 boto3 S3 客户端。延迟导入 boto3，避免插件加载时强依赖未安装的依赖。
+
+    兼容 Cloudflare R2 与腾讯云 COS：两者都走 S3 协议，差异仅在 endpoint / region。
+    R2 用 region="auto"；COS 必须用实际区域（如 ap-guangzhou），否则 SigV4 签名校验失败。
+    """
     import boto3
     from botocore.config import Config as BotoConfig
 
@@ -25,7 +29,7 @@ def _build_client():
         endpoint_url=config.r2_url,
         aws_access_key_id=config.r2_id,
         aws_secret_access_key=config.r2_key,
-        region_name="auto",
+        region_name=config.r2_region,
         config=BotoConfig(
             signature_version="s3v4",
             retries={"max_attempts": 3, "mode": "standard"},

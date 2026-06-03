@@ -91,19 +91,6 @@ class R2Bucket:
         """生成 QQ Markdown 图片字面量：![alt #Wpx #Hpx](url)。宽高必填。"""
         return f"![{alt} #{width}px #{height}px]({url})"
 
-    async def _warm_cdn(self, url: str):
-        """预热 CDN：GET 公网 URL 触发边缘节点缓存，重试 2 次。"""
-        import httpx
-        last_err = None
-        for attempt in range(2):
-            try:
-                async with httpx.AsyncClient(timeout=15.0) as hc:
-                    await hc.get(url)
-                return
-            except Exception as e:
-                last_err = e
-        logger.warning(f"CDN 预热失败 url={url}: {last_err}")
-
     # ── 低级 API ──
 
     async def head(self, key: str) -> bool:
@@ -246,10 +233,6 @@ class R2Bucket:
 
             url = self.public_url(key)
             manifest.put_addressed(h, key=key, url=url, width=width, height=height)
-
-            # 预热 CDN：GET 公网 URL 触发边缘节点回源缓存。
-            # await 只阻塞当前 handler task，不影响其他用户的消息处理。
-            await self._warm_cdn(url)
 
             # 释放 inflight 锁记录（保留锁本身让正在 await 的协程跑完）
             async with self._inflight_guard:
