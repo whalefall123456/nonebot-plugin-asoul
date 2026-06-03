@@ -24,7 +24,7 @@ from nonebot.adapters.qq.models import (
 from nonebot.params import CommandArg, RawCommand
 from nonebot.plugin import PluginMetadata
 from nonebot.plugin.on import on_command
-from nonebot import require
+from nonebot import get_driver, require
 from nonebot.permission import SUPERUSER
 
 require("nonebot_plugin_alconna")
@@ -113,7 +113,9 @@ async def _():
 async def _(event: GroupAtMessageCreateEvent):
     gid = event.group_openid
     uid = event.get_user_id()
-    if fortune_manager.check_data(gid, uid):
+    # admin 每次都重新生成，方便调试
+    is_admin = event.get_user_id() in get_driver().config.superusers
+    if is_admin or fortune_manager.check_data(gid, uid):
         result = await fortune_manager.do_draw(gid, uid)
         fortune_manager.save_data()
         if "url" in result:
@@ -132,6 +134,7 @@ async def _(event: GroupAtMessageCreateEvent):
                     ])]
                 )
             )
+            logger.info(f"[fortune] url={result['url']} w={result['w']} h={result['h']} md={md!r}")
             await daily_fortune.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
         else:
             message = UniMessage(Image(path=result["img_path"]))

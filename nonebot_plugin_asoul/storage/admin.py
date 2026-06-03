@@ -2,7 +2,7 @@
 @Author: star_482
 @Date: 2026/5/26
 @File: admin
-@Description: R2 图床的 SUPERUSER 管理命令：自检 / 同步 / 查询 / 清单。
+@Description: COS 图床的 SUPERUSER 管理命令：自检 / 同步 / 查询 / 清单。
 """
 import os
 from pathlib import Path
@@ -78,11 +78,11 @@ async def _():
     from . import get_bucket
 
     bucket = get_bucket()
-    lines = ["R2 图床自检"]
+    lines = ["COS 图床自检"]
 
     url = await bucket.upload_bytes(_PROBE_PNG, _PROBE_KEY, content_type="image/png")
     if not url:
-        lines.append("✗ 上传失败，检查 R2 凭据 / endpoint")
+        lines.append("✗ 上传失败，检查 COS 凭据 / endpoint")
         await healthcheck.finish(MessageSegment.text("\n".join(lines)))
     lines.append(f"✓ 上传 OK：{url}")
 
@@ -153,7 +153,7 @@ async def _(arg: Message = CommandArg()):
 @list_cmd.handle()
 async def _():
     summary = manifest.summary()
-    lines = ["R2 图床清单"]
+    lines = ["COS 图床清单"]
     lines.append("[static]")
     if summary["static"]:
         for bucket_name, count in sorted(summary["static"].items()):
