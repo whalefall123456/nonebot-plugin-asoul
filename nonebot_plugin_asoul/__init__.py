@@ -38,6 +38,7 @@ from . import diana_pet as _diana_pet
 from . import whateat as _whateat
 from . import storage as _storage
 from .utils import open_json, download_img
+from . import live_subscription as _live_subscription
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .eye_shadow import select_random_eyeshadow

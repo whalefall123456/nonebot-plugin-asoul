@@ -19,6 +19,10 @@ class Config(BaseModel):
     whateat_cd: int = 10
     whateat_max: int = 0
 
+    # B站开播订阅轮询
+    live_poll_interval: int = 60
+    live_poll_http_timeout: float = 10.0
+
     # 对象存储（腾讯云 COS，S3 兼容协议；也可填其他 S3 兼容存储）
     cos_id: str
     cos_key: str
