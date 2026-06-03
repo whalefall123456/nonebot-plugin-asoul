@@ -2,7 +2,7 @@
 @Author: star_482
 @Date: 2026/5/26
 @File: manifest
-@Description: R2 上传索引（本地缓存）。两段式：static 按 key、addressed 按 recipe 哈希。
+@Description: COS 上传索引（本地缓存）。两段式：static 按 key、addressed 按 recipe 哈希。
 """
 import json
 import os
@@ -15,7 +15,7 @@ from nonebot.log import logger
 
 from ..config import config
 
-MANIFEST_FILENAME = "r2_manifest.json"
+MANIFEST_FILENAME = "cos_manifest.json"
 
 _manifest: Optional[dict] = None
 _lock = Lock()

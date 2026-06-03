@@ -43,11 +43,11 @@ def get_random_wife_message() -> UniMessage:
 
 
 async def get_random_wife_md_message():
-    """返回 QQ Markdown 消息（图片走 R2 公网 URL）+ 内联键盘。
+    """返回 QQ Markdown 消息（图片走 COS 公网 URL）+ 内联键盘。
 
     降级路径：
     - 目录不存在 / 为空 → 文本提示
-    - R2 上传失败 → 回退到本地 Image(path=...) 发送
+    - COS 上传失败 → 回退到本地 Image(path=...) 发送
     """
     wife_path = _wife_path()
     if not wife_path.exists():
@@ -69,7 +69,7 @@ async def get_random_wife_md_message():
     url = await bucket.get_or_upload_file(img, prefix=KEY_PREFIX["wife"])
 
     if url is None:
-        # R2 上传失败 → 降级到本地 Image
+        # COS 上传失败 → 降级到本地 Image
         message = UniMessage(Text(f"你今日抽取的老婆是{name}"))
         message.append(Image(path=img))
         return message
