@@ -135,7 +135,6 @@ async def _(event: GroupAtMessageCreateEvent):
                     ])]
                 )
             )
-            logger.info(f"[fortune] url={result['url']} w={result['w']} h={result['h']} md={md!r}")
             await daily_fortune.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
         else:
             message = UniMessage(Image(path=result["img_path"]))
