@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from jinja2 import TemplateError
+
 from .core import PetState
 from .interactions import InteractionService
 from .events import EventManager
@@ -14,6 +16,17 @@ from .costumes import CostumeService
 from .utils import save_pet, load_pet, configure as _configure_paths, today_str
 
 logger = logging.getLogger(__name__)
+
+# 渲染层可能抛出的异常类型（Playwright / Jinja2 / 资源 IO）。
+# 只捕获这些——避免吞掉 AttributeError / TypeError / KeyError 等编程错误。
+# Playwright 的异常类在 v1.40+ 都从 playwright.async_api.Error 继承，懒加载避免依赖检查。
+try:
+    from playwright.async_api import Error as PlaywrightError
+    _RENDER_EXCEPTIONS: tuple[type[BaseException], ...] = (
+        PlaywrightError, TemplateError, OSError, asyncio.TimeoutError,
+    )
+except ImportError:  # 没有 Playwright 时只兜底层 IO / 模板错误
+    _RENDER_EXCEPTIONS = (TemplateError, OSError, asyncio.TimeoutError)
 
 # ── 模块级共享服务（只初始化一次）──
 
@@ -139,7 +152,7 @@ class DianaPet:
                         self.pet, item_id, item.get("emoji", "🍽️"),
                         result["dialogue"], result["changes"],
                     )
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, item_id)
                 img = None
         self._save()
@@ -159,7 +172,7 @@ class DianaPet:
                         self.pet, activity_id, item.get("emoji", "🎮"),
                         result["dialogue"], result["changes"],
                     )
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, activity_id)
                 img = None
         self._save()
@@ -178,7 +191,7 @@ class DianaPet:
                         self.pet, work_id, item.get("emoji", "💼"),
                         result["dialogue"], result["changes"],
                     )
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, work_id)
                 img = None
         self._save()
@@ -197,7 +210,7 @@ class DianaPet:
                         self.pet, action_id, item.get("emoji", "💬"),
                         result["dialogue"], result["changes"],
                     )
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, action_id)
                 img = None
         self._save()
@@ -216,7 +229,7 @@ class DianaPet:
                         self.pet, action_id, item.get("emoji", "📋"),
                         result["dialogue"], result["changes"],
                     )
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, action_id)
                 img = None
         self._save()
@@ -249,11 +262,15 @@ class DianaPet:
             self._save()
         return result
 
-    async def costume_list_card(self) -> bytes:
-        """渲染服装选择列表卡片."""
+    async def costume_list_card(self) -> bytes | None:
+        """渲染服装选择列表卡片，渲染失败时返回 None（调用方需降级为纯文本）."""
         costumes = self.costumes.list_costumes(self.pet)
-        async with self._sem:
-            return await self.renderer.render_costume_list(costumes)
+        try:
+            async with self._sem:
+                return await self.renderer.render_costume_list(costumes)
+        except _RENDER_EXCEPTIONS:
+            logger.exception("Diana render_costume_list failed for user=%s", self.pet.user_id)
+            return None
 
     async def talk(self, message: str) -> dict:
         """和嘉然聊天，自动检测关键词触发事件."""
@@ -268,7 +285,7 @@ class DianaPet:
             try:
                 async with self._sem:
                     img = await self.renderer.render_event_card(events[0])
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_event_card failed for user=%s", self.pet.user_id)
                 img = None
         elif message.strip():
@@ -293,7 +310,7 @@ class DianaPet:
         try:
             async with self._sem:
                 img = await self.renderer.render_status_card(self.pet)
-        except Exception:
+        except _RENDER_EXCEPTIONS:
             logger.exception("Diana render_status_card failed for user=%s", self.pet.user_id)
             img = None
         stats_text = self.interactions.get_status_text(self.pet)
@@ -321,7 +338,7 @@ class DianaPet:
             try:
                 async with self._sem:
                     img = await self.renderer.render_event_card(evt)
-            except Exception:
+            except _RENDER_EXCEPTIONS:
                 logger.exception("Diana render_event_card failed for user=%s", self.pet.user_id)
             images.append(img)
             event_texts.append(evt.get("text", ""))

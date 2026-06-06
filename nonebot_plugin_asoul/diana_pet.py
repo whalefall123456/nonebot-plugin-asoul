@@ -117,7 +117,10 @@ async def _(event: Event):
     diana = await get_diana(event.get_user_id())
     img = await diana.costume_list_card()
     message = UniMessage(Text("🎀 然然的衣柜："))
-    message.append(Image(raw=img))
+    if img is not None:
+        message.append(Image(raw=img))
+    else:
+        message.append(Text("\n（衣柜卡片渲染失败，请稍后再试）"))
     await message.send()
 
 

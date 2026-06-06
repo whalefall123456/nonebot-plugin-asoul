@@ -74,7 +74,11 @@ def save_pet(pet: PetState, save_dir: Optional[Path] = None) -> Path:
 
 
 def load_pet(user_id: str, save_dir: Optional[Path] = None) -> Optional[PetState]:
-    """从 JSON 文件加载宠物状态."""
+    """从 JSON 文件加载宠物状态.
+
+    旧存档（缺 version 字段）惰性标记为 v0，下一次 _save() 由 to_dict() 自然落盘为 SAVE_VERSION。
+    未来如需 v0→v1 字段填充或 v1→v2 数据转换，在此处追加迁移逻辑。
+    """
     if save_dir is None:
         save_dir = get_saves_dir()
     filepath = save_dir / f"{user_id}.json"
@@ -82,22 +86,8 @@ def load_pet(user_id: str, save_dir: Optional[Path] = None) -> Optional[PetState
         return None
     with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
-    # 惰性迁移：旧存档先转版本，下次 _save() 时由 to_dict() 自然落盘为新版本。
-    data = _migrate_save(data)
+    data.setdefault("version", 0)  # 旧存档兜底
     return PetState.from_dict(data)
-
-
-def _migrate_save(data: dict) -> dict:
-    """存档 schema 版本迁移.
-
-    - 缺 version 字段 ⇒ 视为 v0（最旧的存档）。
-    - 当前只支持 v0 → v1，迁移函数把 version 字段补齐。
-    - 落盘交由下一次 save_pet()（由 to_dict() 写入 SAVE_VERSION）。
-    """
-    if "version" not in data:
-        data["version"] = 0
-    # 未来新增 v2、v3 字段时，在此处追加 chain migration。
-    return data
 
 
 def delete_pet(user_id: str, save_dir: Optional[Path] = None) -> bool:
