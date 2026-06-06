@@ -25,7 +25,6 @@ KEY_PREFIX = {
     "wife": "static/wife",
     "activity": "static/activity",
     "ui": "static/ui",
-    "eyeshadow": "static/eyeshadow",
     # addressed 段：按 recipe 哈希 key
     "addressed_fortune": "addressed/fortune",
     "addressed_diana": "addressed/diana",

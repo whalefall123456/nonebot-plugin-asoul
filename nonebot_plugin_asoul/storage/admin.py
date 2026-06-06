@@ -31,7 +31,6 @@ def _local_root_for_prefix(prefix: str) -> Path | None:
         "static/whateat/eat": Path("data/whateat_pic/eat_pic"),
         "static/whateat/drink": Path("data/whateat_pic/drink_pic"),
         "static/wife": data_root / config.wife_img_dir,
-        "static/eyeshadow": data_root / "eyeimg",
         "static/fortune/base": data_root / "resource" / "img" / "asoul",
         "static/ui": data_root / "ui",
     }
@@ -43,7 +42,6 @@ _DEFAULT_SYNC_PREFIXES = [
     "static/whateat/eat",
     "static/whateat/drink",
     "static/wife",
-    "static/eyeshadow",
 ]
 
 _SUPPORTED_IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}

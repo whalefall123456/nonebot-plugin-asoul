@@ -7,8 +7,6 @@
 import random
 import os
 
-from nonebot.internal.matcher import Matcher
-from nonebot.internal.params import ArgPlainText
 from nonebot.log import logger
 from nonebot.adapters import Event
 from nonebot.adapters.qq import Message, MessageEvent, MessageSegment, GroupAtMessageCreateEvent
@@ -40,7 +38,6 @@ from . import storage as _storage
 from .utils import open_json, download_img
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
-from .eye_shadow import select_random_eyeshadow
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
 from .random_wife import get_random_wife_md_message
 from .storage import get_bucket
@@ -63,8 +60,6 @@ daily_fortune = on_command("今日运势", aliases={"抽签"}, priority=config.c
 week_activity = on_command("本周日程", aliases={"日程"}, priority=config.command_priority)
 add_activity = on_command("添加日程", priority=config.command_priority, permission=SUPERUSER)
 
-# 个人向保留功能，后续粉丝向功能规划不再主动露出或推荐。
-random_eyeshadow = on_command("随机眼影", aliases={"随机眼妆", "今日眼影"}, priority=config.command_priority)
 test_markdown = on_command("测试markdown", aliases={"测试md"}, priority=config.command_priority)
 about_xiaoran = on_command("关于小然", aliases={"小然", "关于然然"}, priority=config.command_priority)
 random_wife_matcher = on_command("抽老婆", priority=config.command_priority)
@@ -184,21 +179,6 @@ async def _(event: GroupAtMessageCreateEvent, arg: Message = CommandArg()):
     # logger.info(msg[0].data["text"])
     # logger.info(arg[0])
     await add_activity.finish("日程添加失败，请检查")
-
-
-@random_eyeshadow.handle()
-async def _(macher: Matcher, args: Message = CommandArg()):
-    if args.extract_plain_text():
-        macher.set_arg("using_type", message=args)
-
-
-@random_eyeshadow.got(
-    "using_type",
-    "请选择上班/日常"
-)
-async def get_type(using_type: str = ArgPlainText()):
-    message = select_random_eyeshadow(using_type)
-    await message.send()
 
 
 @test_markdown.handle()
