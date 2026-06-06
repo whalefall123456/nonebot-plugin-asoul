@@ -42,9 +42,9 @@ async def main():
     # 创建宠物，指定各目录路径（不传则使用默认值）
     diana = DianaPet(
         user_id="qq_123456",
-        data_dir=Path("./Diana_pet/data"),     # YAML 配置与模板
-        assets_dir=Path("./Diana_pet/assets"),  # 服装立绘
-        saves_dir=Path("./saves"),              # 用户存档
+        data_dir=Path("./diana/data"),     # YAML 配置与模板（diana 包内自带）
+        assets_dir=Path("./diana/assets"),  # 服装立绘（diana 包内自带）
+        saves_dir=Path("./saves"),         # 用户存档（运行时数据）
     )
 
     # 喂食
@@ -115,7 +115,7 @@ diana/
 }
 ```
 
-> 存档带 `version` 字段。`utils._migrate_save()` 在 `load_pet()` 时把缺 `version` 的旧存档补成 `0`，下次 `_save()` 由 `to_dict()` 自然落盘为 `SAVE_VERSION`。`SAVE_VERSION` 在 `diana/utils.py` 顶部定义，新增字段时递增并配套追加迁移逻辑。
+> 存档带 `version` 字段。`utils._migrate_save()` 在 `load_pet()` 时把缺 `version` 的旧存档补成 `0`，下次 `_save()` 由 `to_dict()` 自然落盘为 `SAVE_VERSION`。`SAVE_VERSION` 在 `diana/core.py` 顶部定义（与 `PetState` 同模块，避免循环 import），新增字段时递增并配套追加迁移逻辑。
 
 ---
 
@@ -135,9 +135,9 @@ diana = DianaPet(
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `user_id` | `str` | 是 | 用户唯一标识，推荐使用 QQ 号 |
-| `data_dir` | `Path` | 否 | YAML 配置和模板目录，默认 `Diana_pet/data/` |
-| `assets_dir` | `Path` | 否 | 静态资源目录（服装立绘），默认 `Diana_pet/assets/` |
-| `saves_dir` | `Path` | 否 | 用户存档目录（`{user_id}.json`），默认 `Diana_pet/saves/` |
+| `data_dir` | `Path` | 否 | YAML 配置和模板目录，默认 diana 包内 `data/` |
+| `assets_dir` | `Path` | 否 | 静态资源目录（服装立绘），默认 diana 包内 `assets/` |
+| `saves_dir` | `Path` | 否 | 用户存档目录（`{user_id}.json`），默认当前工作目录下 `saves/` |
 
 - 若 `{saves_dir}/{user_id}.json` 存在则加载存档，否则创建新宠物
 - 新宠物初始属性：饱腹 80 / 心情 70 / 体力 90 / 亲密度 50 / 金币 100 / 等级 1
@@ -696,7 +696,7 @@ if result.get("image") is not None:
 await send_text(result["text"])
 ```
 
-**存档版本迁移**: `utils._migrate_save()` 在 `load_pet()` 时自动把缺 `version` 字段的旧存档补为 `0`，下次 `_save()` 由 `to_dict()` 写入 `SAVE_VERSION`。`SAVE_VERSION` 常量在 `diana/utils.py` 顶部，新增字段时递增并在该函数中追加迁移分支。详见"数据存储"章节。
+**存档版本迁移**: `utils._migrate_save()` 在 `load_pet()` 时自动把缺 `version` 字段的旧存档补为 `0`，下次 `_save()` 由 `to_dict()` 写入 `SAVE_VERSION`。`SAVE_VERSION` 常量在 `diana/core.py` 顶部（与 `PetState` schema 紧耦合），新增字段时递增并在该函数中追加迁移分支。详见"数据存储"章节。
 
 ---
 
@@ -708,9 +708,8 @@ await send_text(result["text"])
 your-nonebot-project/
 ├── pyproject.toml / bot.py            # NoneBot 入口
 └── src/plugins/
-    └── diana_pet/
-        ├── __init__.py                 # 插件注册 + 所有 matcher
-        └── data/                       # 可选：指向 Diana_pet/data/ 的 symlink
+    └── diana_pet/                     # 插件包（nonebot_plugin_asoul/diana/）
+        └── __init__.py                 # 插件注册 + 所有 matcher（data 与 assets 在 diana 包内自带）
 ```
 
 ### 完整插件代码 (`__init__.py`)
@@ -753,9 +752,9 @@ __plugin_meta__ = PluginMetadata(
     extra={"author": "DianaPet", "version": "0.1.0"},
 )
 
-# ── 路径配置（指向 Diana_pet 项目目录）──
-DIANA_DATA_DIR = Path(__file__).parent.parent.parent / "data"
-DIANA_ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
+# ── 路径配置（data 与 assets 在 diana 包内自带，saves 走插件目录）──
+DIANA_DATA_DIR = Path(__file__).parent / "diana" / "data"
+DIANA_ASSETS_DIR = Path(__file__).parent / "diana" / "assets"
 DIANA_SAVES_DIR = Path(__file__).parent / "saves"  # 存档放插件目录下
 
 USER_CACHE: dict[str, DianaPet] = {}
@@ -1107,7 +1106,7 @@ async def handle_help(matcher: Matcher):
 **聊天**
   然然 <你想说的话> — 和然然聊天（自动触发梗事件）
 
-🔗 项目: Diana_pet
+🔗 项目: diana
 """
     await matcher.send(help_text.strip())
 ```
@@ -1128,15 +1127,15 @@ adapters = [
 
 ### 目录要求
 
-插件需要能访问 `diana/` 包和 `data/` 目录。推荐两种方式：
+插件需要能访问 `diana/` 包。`data/`（YAML + 模板）和 `assets/`（服装立绘）已作为包自带资源随代码发布；`saves/` 仍需在外部指定。推荐方式：
 
-**方式 A**: 直接把 `Diana_pet` 目录放到 Bot 项目同级，修改 `PYTHONPATH`：
+**方式 A**: 把 `diana/` 包放进 `PYTHONPATH`：
 
 ```bash
-PYTHONPATH=/path/to/Diana_pet:$PYTHONPATH nb run
+PYTHONPATH=/path/to/nonebot_plugin_asoul:$PYTHONPATH nb run
 ```
 
-**方式 B**: 在 Bot 项目的 `requirements.txt` 中加入 DianaPet 的路径依赖，`data_dir` 参数指向正确路径。
+**方式 B**: 在 Bot 项目的 `requirements.txt` 中加入 DianaPet 的路径依赖，`saves_dir` 参数指向想要的位置即可。
 
 ---
 
@@ -1158,10 +1157,8 @@ PYTHONPATH=/path/to/Diana_pet:$PYTHONPATH nb run
 ```python
 from pathlib import Path
 
-# data_dir: YAML 配置 + Jinja2 模板
-# assets_dir: 服装立绘 PNG
-# saves_dir: 用户存档 JSON
-DIANA = Path("/path/to/Diana_pet")
+# data_dir / assets_dir 通常可省略（diana 包内自带），saves 走独立目录。
+DIANA = Path("/path/to/nonebot_plugin_asoul/diana")
 diana = DianaPet(
     user_id,
     data_dir=DIANA / "data",
@@ -1215,8 +1212,8 @@ MAX_CONCURRENT_RENDERS = 1  # 1C2G 建议设为 1，高配服务器可调到 2-4
 ```bash
 # 方式 1: 设置 PYTHONPATH
 cd /path/to/your-bot
-PYTHONPATH=/path/to/Diana_pet:$PYTHONPATH nb run
+PYTHONPATH=/path/to/nonebot_plugin_asoul:$PYTHONPATH nb run
 
 # 方式 2: 在 .env 中配置
-echo 'PYTHONPATH=/path/to/Diana_pet' >> .env
+echo 'PYTHONPATH=/path/to/nonebot_plugin_asoul' >> .env
 ```

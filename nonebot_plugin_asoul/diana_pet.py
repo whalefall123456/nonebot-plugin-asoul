@@ -24,13 +24,16 @@ CACHE_MAX_SIZE = 500
 # 防止同 user_id 并发请求时创建重复 DianaPet 实例。
 USER_CACHE_LOCK = asyncio.Lock()
 
+# diana 包内自带 data/ 与 assets/，与代码一起发布；saves 仍走 config.data_path。
+_DIANA_PACKAGE_DIR = Path(__file__).parent / "diana"
+
 
 def _diana_data_dir() -> Path:
-    return Path(config.data_path) / config.diana_data_dir
+    return _DIANA_PACKAGE_DIR / "data"
 
 
 def _diana_assets_dir() -> Path:
-    return Path(config.data_path) / config.diana_assets_dir
+    return _DIANA_PACKAGE_DIR / "assets"
 
 
 def _diana_saves_dir() -> Path:

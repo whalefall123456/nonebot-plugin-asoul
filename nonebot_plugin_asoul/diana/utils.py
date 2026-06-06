@@ -6,18 +6,15 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from .core import PetState
+from .core import PetState, SAVE_VERSION
 
-# ── 存档 schema 版本号 ──
-# 新增字段时递增，并配套在 _migrate_save() 中追加 v(N-1) → vN 迁移逻辑。
-SAVE_VERSION = 1
-
-# ── 项目根目录（diana/ 的父目录）──
-_PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+# ── diana 包目录（包内的 data/ 与 assets/ 与代码一起发布，saves 在外部）──
+_PACKAGE_DIR = Path(__file__).parent.resolve()
 
 # ── 内置默认路径 ──
-_DEFAULT_DATA_DIR = _PROJECT_ROOT / "data"
-_DEFAULT_ASSETS_DIR = _PROJECT_ROOT / "assets"
+# data 与 assets 跟着包走（不依赖外部 data_path），是包自带的"只读"内容。
+_DEFAULT_DATA_DIR = _PACKAGE_DIR / "data"
+_DEFAULT_ASSETS_DIR = _PACKAGE_DIR / "assets"
 _DEFAULT_SAVES_DIR = Path(os.getcwd()) / "saves"
 
 # ── 运行时配置（由 configure() 修改）──

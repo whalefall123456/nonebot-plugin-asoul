@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -62,13 +63,14 @@ def get_shared_services(
 ):
     """返回共享服务的引用，首次调用时初始化."""
     if not _services_initialized:
-        project_root = Path(__file__).parent.parent.resolve()
+        # data 与 assets 默认在 diana 包内（与代码一起发布），saves 仍走 CWD。
+        package_dir = Path(__file__).parent.resolve()
         if data_dir is None:
-            data_dir = project_root / "data"
+            data_dir = package_dir / "data"
         if assets_dir is None:
-            assets_dir = project_root / "assets"
+            assets_dir = package_dir / "assets"
         if saves_dir is None:
-            saves_dir = project_root / "saves"
+            saves_dir = Path(os.getcwd()) / "saves"
         _init_shared_services(data_dir, assets_dir, saves_dir)
     return _interaction_service, _event_manager, _costume_service, _renderer, _render_semaphore
 
@@ -92,13 +94,13 @@ class DianaPet:
         用户唯一标识（QQ 号）。
     data_dir : Path, optional
         YAML 配置目录（items.yaml / events.yaml / dialogues.yaml / templates/ 等）。
-        默认：Diana_pet/data/
+        默认：diana 包内的 data/ 目录。
     assets_dir : Path, optional
         静态资源目录（costume 立绘 PNG）。
-        默认：Diana_pet/assets/
+        默认：diana 包内的 assets/ 目录。
     saves_dir : Path, optional
         用户存档目录（{user_id}.json）。
-        默认：Diana_pet/saves/
+        默认：当前工作目录下的 saves/。
     """
 
     def __init__(

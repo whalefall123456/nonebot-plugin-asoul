@@ -17,7 +17,7 @@ class EventManager:
 
     def __init__(self, data_dir: Optional[Path] = None):
         if data_dir is None:
-            data_dir = Path(__file__).parent.parent / "data"
+            data_dir = Path(__file__).parent / "data"
         self.data_dir = Path(data_dir)
         raw = self._load_yaml("events.yaml")
         self.random_events: list[dict] = []

@@ -4,7 +4,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .utils import SAVE_VERSION
+# 存档 schema 版本号。新增字段时递增，并配套在 utils._migrate_save() 中追加 v(N-1) → vN 迁移逻辑。
+SAVE_VERSION = 1
 
 # ── 衰减速率 ──
 DECAY_HUNGER_PER_HOUR = 2.5        # 每小时饱腹 -2.5

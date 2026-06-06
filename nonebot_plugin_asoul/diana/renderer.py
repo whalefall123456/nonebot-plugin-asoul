@@ -22,11 +22,12 @@ class ImageRenderer:
         data_dir: Optional[Path] = None,
         assets_dir: Optional[Path] = None,
     ):
+        # 默认指向 diana 包内的 data/ 与 assets/ 目录（与代码一起发布）。
         if template_dir is None:
-            template_dir = Path(__file__).parent.parent / "data" / "templates"
+            template_dir = Path(__file__).parent / "data" / "templates"
         self.template_dir = Path(template_dir)
-        self.data_dir = Path(data_dir) if data_dir else Path(__file__).parent.parent / "data"
-        self.assets_dir = Path(assets_dir) if assets_dir else Path(__file__).parent.parent / "assets"
+        self.data_dir = Path(data_dir) if data_dir else Path(__file__).parent / "data"
+        self.assets_dir = Path(assets_dir) if assets_dir else Path(__file__).parent / "assets"
         self.env = Environment(loader=FileSystemLoader(str(self.template_dir)))
         self._browser = None
         # 服装名缓存：启动时一次性读 costumes.yaml，避免每次状态卡片渲染都重读。
