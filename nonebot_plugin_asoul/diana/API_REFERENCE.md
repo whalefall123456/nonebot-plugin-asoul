@@ -102,6 +102,7 @@ diana/
 
 ```json
 {
+  "version": 1,
   "user_id": "qq_123456",
   "hunger": 80, "mood": 70, "energy": 90, "closeness": 50,
   "level": 1, "exp": 0, "coins": 100,
@@ -113,6 +114,8 @@ diana/
   "achievement_flags": {}
 }
 ```
+
+> 存档带 `version` 字段。`utils._migrate_save()` 在 `load_pet()` 时把缺 `version` 的旧存档补成 `0`，下次 `_save()` 由 `to_dict()` 自然落盘为 `SAVE_VERSION`。`SAVE_VERSION` 在 `diana/utils.py` 顶部定义，新增字段时递增并配套追加迁移逻辑。
 
 ---
 
@@ -685,14 +688,15 @@ result = await diana.change_outfit("chunjie")
 # {"success": False, "text": "还没有解锁这件服装哦~"}  -- 未解锁
 ```
 
-**渲染异常**: 如果 Chromium 崩溃，`image` 字段可能为 `None`。Bot 插件应对此做降级处理：
+**渲染异常（已内置降级）**: 所有 render 调用（`render_status_card` / `render_interaction_card` / `render_event_card` / `render_costume_list`）都被 `try/except Exception` 包裹。Playwright Chromium 崩溃、模板渲染失败、Jinja2 语法错误等情况会**写 WARNING 日志并把 `result["image"]` 置为 `None`**，业务数据（属性变化、对话、save 落盘）照常完成。Bot 插件层只需在发送时判空即可：
 
 ```python
-if result["image"] is not None:
+if result.get("image") is not None:
     await send_image(result["image"])
-else:
-    await send_text(result["text"])
+await send_text(result["text"])
 ```
+
+**存档版本迁移**: `utils._migrate_save()` 在 `load_pet()` 时自动把缺 `version` 字段的旧存档补为 `0`，下次 `_save()` 由 `to_dict()` 写入 `SAVE_VERSION`。`SAVE_VERSION` 常量在 `diana/utils.py` 顶部，新增字段时递增并在该函数中追加迁移分支。详见"数据存储"章节。
 
 ---
 
@@ -1088,11 +1092,12 @@ async def handle_help(matcher: Matcher):
 **打工** (5种)
   打工日常直播 / 打工生日会直播 / 打工团播 / 练舞排练 / 小剧场
 
-**社交** (10种)
-  摸摸头 / 好耶 / 喊一米八 / 叫嘉门 / Mua / 写信小作文 / 送抱枕 / ...
+**互动** (10种, 社交类)
+  互动 摸摸头 / 互动 Mua / 互动 喊一米八 / 互动 叫嘉门 / 互动 送抱枕 / ...
+  （YAML 内部 category 仍为 social）
 
 **日常** (8种)
-  休息 / 逛街 / 上学 / 自画像 / 敷面膜 / 刷B站 / 吃夜宵
+  日常 休息 / 日常 逛街 / 日常 刷B站 / 日常 吃夜宵 / ...
 
 **换装**
   换装 — 随机换装
@@ -1183,7 +1188,7 @@ diana = DianaPet(
 6. **模糊匹配物品名**: 用户可能打错字（"鸡胸"→"鸡胸肉"、"连连"→"连连看"），用 `in` 做子串匹配
 7. **输入为空时提示**: 当 `CommandArg` 为空时，返回该类别可用物品列表作为提示
 8. **帮助菜单**: 实现 `然然帮助` 列出所有指令
-9. **社交/日常动作用 `on_keyword`**: 不需要指令前缀，关键词触发更自然
+9. **互动/日常动作用 `on_command`**: 本仓库当前实现为 `on_command("互动", ...)` / `on_command("日常", ...)`，与本节描述的"`on_keyword` 关键词触发"不同；YAML 内部 category 仍为 `social` / `daily`，但用户面向层用"互动"（"社交"用词不自然）。照搬本文档生成的代码请按当前实现选择命令风格。
 10. **聊天用 `on_command("然然", ...)`**: 只有带"然然"前缀的消息才走聊天通道，避免过度触发
 
 ### 性能参考

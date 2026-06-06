@@ -1,6 +1,7 @@
 """HTML → PNG 渲染器（基于 Jinja2 + Playwright）."""
 
 import base64
+import logging
 import random
 from pathlib import Path
 from typing import Optional
@@ -8,6 +9,8 @@ from typing import Optional
 from jinja2 import Environment, FileSystemLoader
 
 from .core import PetState
+
+logger = logging.getLogger(__name__)
 
 
 class ImageRenderer:
@@ -26,6 +29,9 @@ class ImageRenderer:
         self.assets_dir = Path(assets_dir) if assets_dir else Path(__file__).parent.parent / "assets"
         self.env = Environment(loader=FileSystemLoader(str(self.template_dir)))
         self._browser = None
+        # 服装名缓存：启动时一次性读 costumes.yaml，避免每次状态卡片渲染都重读。
+        self._costumes_cache: dict[str, str] = {}
+        self._load_costumes_yaml()
 
     async def _get_browser(self):
         """懒初始化 Playwright 浏览器."""
@@ -54,17 +60,31 @@ class ImageRenderer:
         return ""
 
     def _get_costume_name(self, costume_id: str) -> str:
-        """根据 costume_id 返回中文名称."""
+        """根据 costume_id 返回中文名称（读启动期缓存，不重读 YAML）."""
+        return self._costumes_cache.get(costume_id, costume_id)
+
+    def _load_costumes_yaml(self) -> None:
+        """启动期一次性加载 costumes.yaml 到 _costumes_cache.
+
+        文件缺失或解析失败时打 warning 并保持空缓存（不影响功能，只是显示
+        服装名会回退到 costume_id）。运行时不会重新加载，编辑 costumes.yaml
+        后需要重启 bot。
+        """
         try:
             import yaml
             path = self.data_dir / "costumes.yaml"
+            if not path.exists():
+                logger.warning("costumes.yaml not found at %s; costume names will fall back to id", path)
+                return
             with open(path, "r", encoding="utf-8") as f:
-                costumes = yaml.safe_load(f) or {}
-            if costume_id in costumes:
-                return costumes[costume_id].get("name", costume_id)
+                data = yaml.safe_load(f) or {}
+            self._costumes_cache = {
+                cid: info.get("name", cid)
+                for cid, info in data.items()
+                if isinstance(info, dict)
+            }
         except Exception:
-            pass
-        return costume_id
+            logger.exception("Failed to load costumes.yaml; costume names will fall back to id")
 
     # ── 卡片渲染 ──
 

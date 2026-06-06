@@ -8,6 +8,10 @@ from typing import Optional
 
 from .core import PetState
 
+# ── 存档 schema 版本号 ──
+# 新增字段时递增，并配套在 _migrate_save() 中追加 v(N-1) → vN 迁移逻辑。
+SAVE_VERSION = 1
+
 # ── 项目根目录（diana/ 的父目录）──
 _PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 
@@ -81,7 +85,22 @@ def load_pet(user_id: str, save_dir: Optional[Path] = None) -> Optional[PetState
         return None
     with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
+    # 惰性迁移：旧存档先转版本，下次 _save() 时由 to_dict() 自然落盘为新版本。
+    data = _migrate_save(data)
     return PetState.from_dict(data)
+
+
+def _migrate_save(data: dict) -> dict:
+    """存档 schema 版本迁移.
+
+    - 缺 version 字段 ⇒ 视为 v0（最旧的存档）。
+    - 当前只支持 v0 → v1，迁移函数把 version 字段补齐。
+    - 落盘交由下一次 save_pet()（由 to_dict() 写入 SAVE_VERSION）。
+    """
+    if "version" not in data:
+        data["version"] = 0
+    # 未来新增 v2、v3 字段时，在此处追加 chain migration。
+    return data
 
 
 def delete_pet(user_id: str, save_dir: Optional[Path] = None) -> bool:

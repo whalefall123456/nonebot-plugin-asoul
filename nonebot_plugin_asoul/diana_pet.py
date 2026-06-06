@@ -4,6 +4,7 @@
 @File: diana_pet
 @Description:
 """
+import asyncio
 from pathlib import Path
 
 from nonebot import get_driver
@@ -19,6 +20,9 @@ from .diana.api import DianaPet, shutdown
 
 USER_CACHE: dict[str, DianaPet] = {}
 CACHE_MAX_SIZE = 500
+# 模块级单锁：保护 USER_CACHE 写入与 CACHE_MAX_SIZE 触达时的驱逐路径，
+# 防止同 user_id 并发请求时创建重复 DianaPet 实例。
+USER_CACHE_LOCK = asyncio.Lock()
 
 
 def _diana_data_dir() -> Path:
@@ -35,15 +39,18 @@ def _diana_saves_dir() -> Path:
 
 async def get_diana(user_id: str) -> DianaPet:
     if user_id not in USER_CACHE:
-        if len(USER_CACHE) >= CACHE_MAX_SIZE:
-            oldest = next(iter(USER_CACHE))
-            await USER_CACHE.pop(oldest).close()
-        USER_CACHE[user_id] = DianaPet(
-            user_id=user_id,
-            data_dir=_diana_data_dir(),
-            assets_dir=_diana_assets_dir(),
-            saves_dir=_diana_saves_dir(),
-        )
+        async with USER_CACHE_LOCK:
+            # 双重检查：拿锁后可能已被其他协程创建。
+            if user_id not in USER_CACHE:
+                if len(USER_CACHE) >= CACHE_MAX_SIZE:
+                    oldest = next(iter(USER_CACHE))
+                    await USER_CACHE.pop(oldest).close()
+                USER_CACHE[user_id] = DianaPet(
+                    user_id=user_id,
+                    data_dir=_diana_data_dir(),
+                    assets_dir=_diana_assets_dir(),
+                    saves_dir=_diana_saves_dir(),
+                )
     return USER_CACHE[user_id]
 
 
@@ -87,6 +94,11 @@ diana_work = on_command("打工", aliases={"直播", "工作"}, priority=config.
 diana_costume = on_command("换装", aliases={"换上", "穿"}, priority=config.command_priority)
 diana_unlock = on_command("解锁", aliases={"购买"}, priority=config.command_priority)
 diana_talk = on_command("然然", aliases={"然然聊天"}, priority=config.command_priority)
+# /互动 暴露 YAML category=social 的 10 个动作（摸摸头 / Mua / 喊一米八 / 叫嘉门 / …）。
+# YAML 内部 category 仍叫 social，只是用户面向层用"互动"更自然。
+diana_interact = on_command("互动", aliases={"撒娇", "和然然互动"}, priority=config.command_priority)
+# /日常 暴露 YAML category=daily 的 8 个动作（休息 / 逛街 / 刷B站 / …）。
+diana_daily = on_command("日常", aliases={"日常活动"}, priority=config.command_priority)
 diana_help = on_command("然然帮助", aliases={"宠物帮助", "然然指令"}, priority=config.command_priority)
 
 
@@ -184,6 +196,26 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     await send_result(result, matcher)
 
 
+@diana_interact.handle()
+async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
+    action = _extract_arg(args)
+    if not action:
+        await diana_interact.finish("要和然然做什么互动呢？比如：/互动 摸摸头、/互动 Mua、/互动 喊一米八")
+    diana = await get_diana(event.get_user_id())
+    result = await diana.social(action)
+    await send_result(result, matcher)
+
+
+@diana_daily.handle()
+async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
+    action = _extract_arg(args)
+    if not action:
+        await diana_daily.finish("和然然一起做什么呢？比如：/日常 休息、/日常 逛街、/日常 刷B站")
+    diana = await get_diana(event.get_user_id())
+    result = await diana.daily(action)
+    await send_result(result, matcher)
+
+
 @diana_help.handle()
 async def _():
     help_text = (
@@ -193,6 +225,8 @@ async def _():
         "玩耍：/玩 连连看、/玩 宅舞一支、/玩 你画我猜\n"
         "打工：/打工 日常直播、/打工 团播、/打工 小剧场\n"
         "换装：/换装、/换装 团服、/解锁 春节服\n"
+        "互动：/互动 摸摸头、/互动 Mua、/互动 喊一米八\n"
+        "日常：/日常 休息、/日常 逛街、/日常 刷B站\n"
         "聊天：/然然 今天想吃什么"
     )
     await diana_help.finish(help_text)

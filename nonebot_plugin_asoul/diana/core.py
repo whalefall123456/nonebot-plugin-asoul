@@ -4,6 +4,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+from .utils import SAVE_VERSION
+
 # ── 衰减速率 ──
 DECAY_HUNGER_PER_HOUR = 2.5        # 每小时饱腹 -2.5
 DECAY_MOOD_PER_HOUR = 2.0          # 每小时心情 -2.0
@@ -140,6 +142,7 @@ class PetState:
 
     def to_dict(self) -> dict:
         return {
+            "version": SAVE_VERSION,
             "user_id": self.user_id,
             "hunger": self.hunger,
             "mood": self.mood,
