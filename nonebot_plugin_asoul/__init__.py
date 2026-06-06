@@ -36,6 +36,7 @@ from . import diana_pet as _diana_pet
 from . import whateat as _whateat
 from . import storage as _storage
 from .utils import open_json, download_img
+from . import live_subscription as _live_subscription
 from .fortune_manager import fortune_manager
 from .activity import save_img_activity, save_json_activity, get_relative_content
 from .markdown import get_about_xiaoran_markdown, get_test_markdown
@@ -129,7 +130,6 @@ async def _(event: GroupAtMessageCreateEvent):
                     ])]
                 )
             )
-            logger.info(f"[fortune] url={result['url']} w={result['w']} h={result['h']} md={md!r}")
             await daily_fortune.finish(MessageSegment.markdown(md) + MessageSegment.keyboard(keyboard))
         else:
             message = UniMessage(Image(path=result["img_path"]))
