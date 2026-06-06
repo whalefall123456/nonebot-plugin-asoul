@@ -5,6 +5,7 @@
 @Description:
 """
 import asyncio
+import logging
 from pathlib import Path
 
 from nonebot import get_driver
@@ -16,6 +17,8 @@ from nonebot.adapters.qq import Message
 from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
 
 from .config import config
+
+logger = logging.getLogger(__name__)
 from .diana.api import DianaPet, shutdown
 
 USER_CACHE: dict[str, DianaPet] = {}
@@ -84,9 +87,17 @@ driver = get_driver()
 
 @driver.on_shutdown
 async def _shutdown():
-    for diana in USER_CACHE.values():
-        await diana.close()
-    await shutdown()
+    # 外层 try/finally 保证 Chromium 一定被关——单 user 的 close() 抛 I/O 错误
+    # （磁盘满 / 文件锁）也不能让 renderer 进程残留。
+    try:
+        for diana in USER_CACHE.values():
+            try:
+                await diana.close()
+            except Exception:
+                logger.exception("Diana close() failed during shutdown for user=%s",
+                                 getattr(getattr(diana, "pet", None), "user_id", "?"))
+    finally:
+        await shutdown()
 
 
 diana_status = on_command("然然状态", aliases={"状态", "我的然然", "然然信息"}, priority=config.command_priority)

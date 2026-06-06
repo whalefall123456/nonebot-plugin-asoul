@@ -4,7 +4,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-# 存档 schema 版本号。新增字段时递增，并配套在 utils._migrate_save() 中追加 v(N-1) → vN 迁移逻辑。
+# 存档 schema 版本号。新增字段时递增：
+# 1. 改 SAVE_VERSION
+# 2. 在 utils.load_pet() 顶部插入 v(N-1) → vN 迁移分支（字段重命名 / 值映射 / 默认值等）
+# 3. PetState.from_dict() 只丢弃 `version` 元数据，不感知 schema 升级
 SAVE_VERSION = 1
 
 # ── 衰减速率 ──
@@ -167,6 +170,11 @@ class PetState:
     @classmethod
     def from_dict(cls, d: dict) -> "PetState":
         data = {k: v for k, v in d.items() if k != "user_id"}
+        # 存档元数据：version 字段由 to_dict() 写入，但不属于 PetState 实例字段，
+        # 这里显式丢弃避免 dataclass 抛 "unexpected keyword argument"。
+        # 未来 v0→v1 / v1→v2 的真实数据转换（字段重命名、值映射等）应在
+        # utils._migrate_save() 走完迁移后再调本方法；from_dict 只负责"丢弃元数据"。
+        data.pop("version", None)
         # 兼容旧存档：outfit "常服" → "default"
         if data.get("outfit") == "常服":
             data["outfit"] = "default"

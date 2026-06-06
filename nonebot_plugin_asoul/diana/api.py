@@ -17,16 +17,18 @@ from .utils import save_pet, load_pet, configure as _configure_paths, today_str
 
 logger = logging.getLogger(__name__)
 
-# 渲染层可能抛出的异常类型（Playwright / Jinja2 / 资源 IO）。
+# 渲染层可能抛出的异常类型（Playwright / Jinja2 / 资源 IO / 懒加载失败）。
 # 只捕获这些——避免吞掉 AttributeError / TypeError / KeyError 等编程错误。
-# Playwright 的异常类在 v1.40+ 都从 playwright.async_api.Error 继承，懒加载避免依赖检查。
+# 注意：ImportError 也在内——当用户没装 playwright.async_api 时，renderer.py 内部
+# `from playwright.async_api import async_playwright` 会抛 ImportError；之前的 `except Exception`
+# 兜底承诺"无 Playwright 也能用"在收窄白名单时不能丢这条。
 try:
     from playwright.async_api import Error as PlaywrightError
     _RENDER_EXCEPTIONS: tuple[type[BaseException], ...] = (
-        PlaywrightError, TemplateError, OSError, asyncio.TimeoutError,
+        PlaywrightError, TemplateError, OSError, asyncio.TimeoutError, ImportError,
     )
-except ImportError:  # 没有 Playwright 时只兜底层 IO / 模板错误
-    _RENDER_EXCEPTIONS = (TemplateError, OSError, asyncio.TimeoutError)
+except ImportError:  # 没有 Playwright 时只兜底层 IO / 模板错误 + 懒加载失败
+    _RENDER_EXCEPTIONS = (TemplateError, OSError, asyncio.TimeoutError, ImportError)
 
 # ── 模块级共享服务（只初始化一次）──
 
