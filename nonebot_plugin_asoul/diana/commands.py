@@ -176,7 +176,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     elif matched := diana.costumes.match_by_name(costume_name, diana.pet):
         result = await diana.change_outfit(matched["id"])
     else:
-        result = {"text": f"没有找到'{costume_name}'这件服装呢……"}
+        result = {"success": False, "text": f"没有找到'{costume_name}'这件服装呢……"}
     await send_result(result, matcher)
 
 
@@ -204,7 +204,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     elif matched := diana.costumes.match_by_name(costume_name, diana.pet):
         result = await diana.buy_costume(matched["id"])
     else:
-        result = {"text": f"没有找到'{costume_name}'这件服装呢……"}
+        result = {"success": False, "text": f"没有找到'{costume_name}'这件服装呢……"}
     await send_result(result, matcher)
 
 

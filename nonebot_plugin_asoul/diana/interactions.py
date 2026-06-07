@@ -92,12 +92,6 @@ class InteractionService:
         pet.interaction_count += 1
         pet.check_daily_decay(today_str())
 
-        # 追踪成就计数
-        if category == "food":
-            pet.achievement_flags[AchievementFlag.INTERACTION_FEED_COUNT] = pet.achievement_flags.get(AchievementFlag.INTERACTION_FEED_COUNT, 0) + 1
-        elif category == "play":
-            pet.achievement_flags[AchievementFlag.INTERACTION_PLAY_COUNT] = pet.achievement_flags.get(AchievementFlag.INTERACTION_PLAY_COUNT, 0) + 1
-
         # 通用 on_execute 钩子
         on_execute = item.get("on_execute")
         costume_result = None

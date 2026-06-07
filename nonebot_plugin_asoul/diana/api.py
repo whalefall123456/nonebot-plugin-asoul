@@ -411,7 +411,10 @@ class DianaPet:
     # ── 内部 ──
 
     def _save(self):
-        save_pet(self.pet)
+        try:
+            save_pet(self.pet)
+        except OSError:
+            logger.exception("Diana save_pet failed for user=%s", self.pet.user_id)
 
     def _stats_dict(self) -> dict:
         return {

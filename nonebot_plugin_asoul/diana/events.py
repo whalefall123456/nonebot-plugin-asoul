@@ -73,16 +73,21 @@ class EventManager:
         today_mmdd = today[5:]  # "MM-DD"
         if today_mmdd in self.special_dates:
             evt = self.special_dates[today_mmdd]
-            # 生日周（前后3天）
-            if today_mmdd in ["03-04", "03-05", "03-06", "03-07", "03-08", "03-09", "03-10"]:
-                if AchievementFlag.BIRTHDAY_WEEK_TRIGGERED not in pet.achievement_flags:
-                    self._apply_event(pet, evt)
-                    triggered.append(evt)
-                    pet.achievement_flags[AchievementFlag.BIRTHDAY_WEEK_TRIGGERED] = True
-            elif today_mmdd not in pet.achievement_flags:
+            if today_mmdd not in pet.achievement_flags:
                 self._apply_event(pet, evt)
                 triggered.append(evt)
                 pet.achievement_flags[today_mmdd] = True
+
+        # 生日周（03-04 到 03-10，仅在生日周期间触发一次）
+        birthday_week_dates = ["03-04", "03-05", "03-06", "03-07", "03-08", "03-09", "03-10"]
+        if today_mmdd in birthday_week_dates:
+            if AchievementFlag.BIRTHDAY_WEEK_TRIGGERED not in pet.achievement_flags:
+                # 生日周事件：如果该日期有 special_date 配置则用它的效果，否则用嘉然生日事件
+                bday_evt = self.special_dates.get(today_mmdd, self.special_dates.get("03-07"))
+                if bday_evt:
+                    self._apply_event(pet, bday_evt)
+                    triggered.append(bday_evt)
+                pet.achievement_flags[AchievementFlag.BIRTHDAY_WEEK_TRIGGERED] = True
 
         # 成就
         for ach in self.achievements:
@@ -103,14 +108,12 @@ class EventManager:
         for keyword, evt in self.meme_events.items():
             if keyword.lower() in text_lower or keyword in text:
                 evt_key = f"meme_{evt['id']}"
-                self_memes_key = AchievementFlag.MEME_TRIGGERS_COUNT
-                if evt_key not in pet.achievement_flags:
-                    # 首次触发标记
-                    pass
                 self._apply_event(pet, evt)
                 triggered.append(evt)
-                # 记录 meme 触发次数
-                pet.achievement_flags[self_memes_key] = pet.achievement_flags.get(self_memes_key, 0) + 1
+                # 记录 meme 触发次数（总计，含重复）
+                pet.achievement_flags[AchievementFlag.MEME_TRIGGERS_COUNT] = pet.achievement_flags.get(AchievementFlag.MEME_TRIGGERS_COUNT, 0) + 1
+                # 标记首次触发（用于成就判重）
+                pet.achievement_flags[evt_key] = True
                 break  # 一次只触发一个 meme 事件
         return triggered
 
@@ -145,7 +148,8 @@ class EventManager:
             if play_count < cond["interaction_play_count"]:
                 return False
         if "meme_triggers" in cond:
-            meme_count = pet.achievement_flags.get(AchievementFlag.MEME_TRIGGERS_COUNT, 0)
+            # 计算触发过多少种不同的 meme（基于 meme_xxx 标记）
+            meme_count = sum(1 for k in pet.achievement_flags if k.startswith("meme_") and pet.achievement_flags[k])
             if meme_count < cond["meme_triggers"]:
                 return False
         return True
