@@ -4,11 +4,11 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
-# 存档 schema 版本号。新增字段时递增：
-# 1. 改 SAVE_VERSION
-# 2. 在 utils._migrate_save() 中追加 v(N-1) → vN 迁移分支（字段重命名 / 值映射 / 默认值等）
-# 3. PetState.from_dict() 只丢弃 `version` 元数据，不感知 schema 升级
-SAVE_VERSION = 1
+# 存档 schema。新增字段时：
+# 1. 直接加到 PetState 的 dataclass 字段（带默认值）和 to_dict()
+# 2. from_dict() 会自动丢弃不认识的键，新字段对旧存档使用默认值
+# 模块尚未上线，不存在旧格式存档，因此不需要版本号和迁移链。
+# 上线后如需不兼容的 schema 变更，再引入 SAVE_VERSION 和 _migrate_save。
 
 # ── 成就标志常量 ──
 # 集中管理 achievement_flags 字典的键名，避免裸字符串拼写错误。
@@ -69,6 +69,7 @@ class PetState:
     last_interaction_date: str = ""       # YYYY-MM-DD
     unlocked_titles: list = field(default_factory=list)
     achievement_flags: dict = field(default_factory=dict)
+    triggered_dates: list = field(default_factory=list)   # 已触发的特殊日期 ["MM-DD", ...]
 
     # ── 属性操作 ──
 
@@ -159,7 +160,6 @@ class PetState:
 
     def to_dict(self) -> dict:
         return {
-            "version": SAVE_VERSION,
             "user_id": self.user_id,
             "hunger": self.hunger,
             "mood": self.mood,
@@ -178,16 +178,14 @@ class PetState:
             "last_interaction_date": self.last_interaction_date,
             "unlocked_titles": self.unlocked_titles,
             "achievement_flags": self.achievement_flags,
+            "triggered_dates": self.triggered_dates,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "PetState":
         data = {k: v for k, v in d.items() if k != "user_id"}
-        # 存档元数据：version 字段由 to_dict() 写入，但不属于 PetState 实例字段，
-        # 这里显式丢弃避免 dataclass 抛 "unexpected keyword argument"。
-        # 数据转换（字段重命名、值映射、默认值填充）由 utils._migrate_save() 在
-        # 调用本方法之前按版本号逐级处理；from_dict 只负责反序列化。
-        data.pop("version", None)
+        # 不认识的键（如旧版存档中的 version）会被 dataclass 忽略，
+        # 因为 PetState 没有对应字段。新增字段对旧存档使用默认值。
         return cls(**data, user_id=d["user_id"])
 
     @classmethod

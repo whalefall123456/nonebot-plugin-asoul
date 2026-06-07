@@ -73,10 +73,10 @@ class EventManager:
         today_mmdd = today[5:]  # "MM-DD"
         if today_mmdd in self.special_dates:
             evt = self.special_dates[today_mmdd]
-            if today_mmdd not in pet.achievement_flags:
+            if today_mmdd not in pet.triggered_dates:
                 self._apply_event(pet, evt)
                 triggered.append(evt)
-                pet.achievement_flags[today_mmdd] = True
+                pet.triggered_dates.append(today_mmdd)
 
         # 成就
         for ach in self.achievements:

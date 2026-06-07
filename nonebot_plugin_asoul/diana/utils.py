@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from .core import PetState, SAVE_VERSION
+from .core import PetState
 
 logger = logging.getLogger(__name__)
 
@@ -108,33 +108,11 @@ def save_pet(pet: PetState, save_dir: Optional[Path] = None) -> Path:
         raise
 
 
-def _migrate_save(data: dict) -> dict:
-    """按版本号逐级迁移存档数据.
-
-    v0 → v1: outfit "常服" → "default"，补缺 owned_outfits。
-    未来 v1 → v2 等迁移在此追加。
-    """
-    version = data.get("version", 0)
-
-    if version < 1:
-        # v0 → v1: 常服 → default，补缺 owned_outfits
-        if data.get("outfit") == "常服":
-            data["outfit"] = "default"
-        data.setdefault("owned_outfits", ["default"])
-        data["version"] = 1
-
-    # 后续迁移在此追加：
-    # if version < 2:
-    #     ...
-
-    return data
-
-
 def load_pet(user_id: str, save_dir: Optional[Path] = None) -> Optional[PetState]:
     """从 JSON 文件加载宠物状态.
 
-    旧存档（缺 version 字段）惰性标记为 v0，下一次 _save() 由 to_dict() 自然落盘为 SAVE_VERSION。
-    未来如需 v0→v1 字段填充或 v1→v2 数据转换，在此处追加迁移逻辑。
+    不认识的键（如旧版 version）会被 PetState.from_dict 忽略；
+    新增字段对旧存档使用默认值。
     """
     if save_dir is None:
         save_dir = get_saves_dir()
@@ -143,7 +121,6 @@ def load_pet(user_id: str, save_dir: Optional[Path] = None) -> Optional[PetState
         return None
     with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
-    data = _migrate_save(data)
     return PetState.from_dict(data)
 
 
