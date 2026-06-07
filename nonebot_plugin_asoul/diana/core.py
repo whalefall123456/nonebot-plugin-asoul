@@ -6,9 +6,19 @@ from typing import Optional
 
 # 存档 schema 版本号。新增字段时递增：
 # 1. 改 SAVE_VERSION
-# 2. 在 utils.load_pet() 顶部插入 v(N-1) → vN 迁移分支（字段重命名 / 值映射 / 默认值等）
+# 2. 在 utils._migrate_save() 中追加 v(N-1) → vN 迁移分支（字段重命名 / 值映射 / 默认值等）
 # 3. PetState.from_dict() 只丢弃 `version` 元数据，不感知 schema 升级
 SAVE_VERSION = 1
+
+# ── 成就标志常量 ──
+# 集中管理 achievement_flags 字典的键名，避免裸字符串拼写错误。
+
+class AchievementFlag:
+    """achievement_flags 字典的键名常量."""
+    INTERACTION_FEED_COUNT = "interaction_feed_count"
+    INTERACTION_PLAY_COUNT = "interaction_play_count"
+    MEME_TRIGGERS_COUNT = "meme_triggers_count"
+    BIRTHDAY_WEEK_TRIGGERED = "birthday_week_triggered"
 
 # ── 衰减速率 ──
 DECAY_HUNGER_PER_HOUR = 2.5        # 每小时饱腹 -2.5
@@ -36,7 +46,11 @@ TITLES = [
 
 @dataclass
 class PetState:
-    """嘉然宠物的完整状态."""
+    """嘉然宠物的完整状态.
+
+    IMPORTANT: 外部修改应走 modify() 以确保 clamp + 升级检查。
+    直接赋值（如 pet.mood = 50）绕过校验，仅用于恢复 / 序列化场景。
+    """
 
     user_id: str
     hunger: int = 80          # 饱腹度 0-100
@@ -172,15 +186,9 @@ class PetState:
         data = {k: v for k, v in d.items() if k != "user_id"}
         # 存档元数据：version 字段由 to_dict() 写入，但不属于 PetState 实例字段，
         # 这里显式丢弃避免 dataclass 抛 "unexpected keyword argument"。
-        # 未来 v0→v1 / v1→v2 的真实数据转换（字段重命名、值映射等）应在
-        # utils._migrate_save() 走完迁移后再调本方法；from_dict 只负责"丢弃元数据"。
+        # 数据转换（字段重命名、值映射、默认值填充）由 utils._migrate_save() 在
+        # 调用本方法之前按版本号逐级处理；from_dict 只负责反序列化。
         data.pop("version", None)
-        # 兼容旧存档：outfit "常服" → "default"
-        if data.get("outfit") == "常服":
-            data["outfit"] = "default"
-        # 兼容旧存档：无 owned_outfits 则默认拥有 default
-        if "owned_outfits" not in data:
-            data["owned_outfits"] = ["default"]
         return cls(**data, user_id=d["user_id"])
 
     @classmethod

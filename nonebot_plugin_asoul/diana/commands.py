@@ -1,11 +1,12 @@
 """
 @Author: star_482
 @Date: 2026/5/18
-@File: diana_pet
-@Description:
+@File: commands
+@Description: NoneBot 命令注册层——将 diana 包的 API 暴露为 QQ Bot 指令.
 """
 import asyncio
 import logging
+from collections import OrderedDict
 from pathlib import Path
 
 from nonebot import get_driver
@@ -16,19 +17,19 @@ from nonebot.plugin.on import on_command
 from nonebot.adapters.qq import Message
 from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
 
-from .config import config
+from ..config import config
 
 logger = logging.getLogger(__name__)
-from .diana.api import DianaPet, shutdown
+from .api import DianaPet, shutdown
 
-USER_CACHE: dict[str, DianaPet] = {}
+USER_CACHE: OrderedDict[str, DianaPet] = OrderedDict()
 CACHE_MAX_SIZE = 500
 # 模块级单锁：保护 USER_CACHE 写入与 CACHE_MAX_SIZE 触达时的驱逐路径，
 # 防止同 user_id 并发请求时创建重复 DianaPet 实例。
 USER_CACHE_LOCK = asyncio.Lock()
 
-# diana 包内自带 data/ 与 assets/，与代码一起发布；saves 仍走 config.data_path。
-_DIANA_PACKAGE_DIR = Path(__file__).parent / "diana"
+# diana 包内自带 data/ 与 assets/，与代码一起发布；saves 走 config.data_path。
+_DIANA_PACKAGE_DIR = Path(__file__).parent
 
 
 def _diana_data_dir() -> Path:
@@ -44,19 +45,27 @@ def _diana_saves_dir() -> Path:
 
 
 async def get_diana(user_id: str) -> DianaPet:
-    if user_id not in USER_CACHE:
-        async with USER_CACHE_LOCK:
-            # 双重检查：拿锁后可能已被其他协程创建。
-            if user_id not in USER_CACHE:
-                if len(USER_CACHE) >= CACHE_MAX_SIZE:
-                    oldest = next(iter(USER_CACHE))
-                    await USER_CACHE.pop(oldest).close()
-                USER_CACHE[user_id] = DianaPet(
-                    user_id=user_id,
-                    data_dir=_diana_data_dir(),
-                    assets_dir=_diana_assets_dir(),
-                    saves_dir=_diana_saves_dir(),
-                )
+    """获取或创建 DianaPet 实例，LRU 淘汰."""
+    if user_id in USER_CACHE:
+        USER_CACHE.move_to_end(user_id)
+        return USER_CACHE[user_id]
+    async with USER_CACHE_LOCK:
+        # 双重检查：拿锁后可能已被其他协程创建。
+        if user_id in USER_CACHE:
+            USER_CACHE.move_to_end(user_id)
+            return USER_CACHE[user_id]
+        if len(USER_CACHE) >= CACHE_MAX_SIZE:
+            oldest_key, oldest_diana = USER_CACHE.popitem(last=False)
+            try:
+                await oldest_diana.close()
+            except Exception:
+                logger.exception("Diana close() failed during eviction for user=%s", oldest_key)
+        USER_CACHE[user_id] = DianaPet(
+            user_id=user_id,
+            data_dir=_diana_data_dir(),
+            assets_dir=_diana_assets_dir(),
+            saves_dir=_diana_saves_dir(),
+        )
     return USER_CACHE[user_id]
 
 
@@ -73,13 +82,6 @@ async def send_result(result: dict, matcher: Matcher):
 
 def _extract_arg(args: Message) -> str:
     return args.extract_plain_text().strip()
-
-
-def _match_costume(diana: DianaPet, costume_name: str) -> dict | None:
-    for costume in diana.list_costumes():
-        if costume["name"] in costume_name or costume_name in costume["name"]:
-            return costume
-    return None
 
 
 driver = get_driver()
@@ -171,10 +173,10 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     diana = await get_diana(event.get_user_id())
     if not costume_name:
         result = await diana.random_change_outfit()
-    elif matched := _match_costume(diana, costume_name):
+    elif matched := diana.costumes.match_by_name(costume_name, diana.pet):
         result = await diana.change_outfit(matched["id"])
     else:
-        result = {"text": f"没有找到“{costume_name}”这件服装呢……"}
+        result = {"text": f"没有找到'{costume_name}'这件服装呢……"}
     await send_result(result, matcher)
 
 
@@ -199,10 +201,10 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
                 condition = "特殊条件"
             lines.append(f"{costume['emoji']} {costume['name']} - {condition}")
         await diana_unlock.finish("\n".join(lines))
-    elif matched := _match_costume(diana, costume_name):
+    elif matched := diana.costumes.match_by_name(costume_name, diana.pet):
         result = await diana.buy_costume(matched["id"])
     else:
-        result = {"text": f"没有找到“{costume_name}”这件服装呢……"}
+        result = {"text": f"没有找到'{costume_name}'这件服装呢……"}
     await send_result(result, matcher)
 
 

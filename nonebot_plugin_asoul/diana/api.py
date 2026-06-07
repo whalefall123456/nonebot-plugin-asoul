@@ -2,18 +2,18 @@
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
 from jinja2 import TemplateError
 
-from .core import PetState
+from .core import PetState, AchievementFlag
 from .interactions import InteractionService
 from .events import EventManager
 from .renderer import ImageRenderer
 from .costumes import CostumeService
 from .utils import save_pet, load_pet, configure as _configure_paths, today_str
+from .exceptions import DianaError
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,9 @@ _renderer: Optional[ImageRenderer] = None
 # 渲染并发控制：1C2G 服务器建议 1-2，防止 OOM
 _render_semaphore: Optional[asyncio.Semaphore] = None
 MAX_CONCURRENT_RENDERS = 2
+
+# ── 每用户互斥锁（防同 user_id 并发请求竞态写 PetState）──
+_user_locks: dict[str, asyncio.Lock] = {}
 
 
 def _init_shared_services(
@@ -78,14 +81,15 @@ def get_shared_services(
 ):
     """返回共享服务的引用，首次调用时初始化."""
     if not _services_initialized:
-        # data 与 assets 默认在 diana 包内（与代码一起发布），saves 仍走 CWD。
+        # data 与 assets 默认在 diana 包内（与代码一起发布），saves 从插件配置解析。
         package_dir = Path(__file__).parent.resolve()
         if data_dir is None:
             data_dir = package_dir / "data"
         if assets_dir is None:
             assets_dir = package_dir / "assets"
         if saves_dir is None:
-            saves_dir = Path(os.getcwd()) / "saves"
+            from ..config import config
+            saves_dir = Path(config.data_path) / config.diana_saves_dir
         _init_shared_services(data_dir, assets_dir, saves_dir)
     return _interaction_service, _event_manager, _costume_service, _renderer, _render_semaphore
 
@@ -115,7 +119,7 @@ class DianaPet:
         默认：diana 包内的 assets/ 目录。
     saves_dir : Path, optional
         用户存档目录（{user_id}.json）。
-        默认：当前工作目录下的 saves/。
+        默认：{config.data_path}/{config.diana_saves_dir}（即 ./data/asoul/diana/saves）。
     """
 
     def __init__(
@@ -126,6 +130,9 @@ class DianaPet:
         saves_dir: Optional[Path] = None,
     ):
         self.user_id = user_id
+
+        # 每用户互斥锁：防止同 user_id 并发请求竞态写 PetState。
+        self._lock = _user_locks.setdefault(user_id, asyncio.Lock())
 
         # 复用共享服务（首次调用时用传入的路径初始化，后续调用忽略路径参数）
         self.interactions, self.events, self.costumes, self.renderer, self._sem = (
@@ -140,102 +147,126 @@ class DianaPet:
 
     # ── 交互动作 ──
 
+    def _handle_interaction_error(self, exc: DianaError) -> dict:
+        """将 DianaError 转换为统一的失败返回字典."""
+        return {"success": False, "text": str(exc), "stats": {}, "image_needed": False}
+
     async def feed(self, item_id: str) -> dict:
         """喂食嘉然."""
-        result = self.interactions.execute(self.pet, item_id, self.costumes)
-        self.events.track_interaction(self.pet, "food")
-        self._check_events(result)
-        img = None
-        if result["success"]:
-            item = self.interactions.items[item_id]
+        async with self._lock:
             try:
-                async with self._sem:
-                    img = await self.renderer.render_interaction_card(
-                        self.pet, item_id, item.get("emoji", "🍽️"),
-                        result["dialogue"], result["changes"],
-                    )
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, item_id)
-                img = None
-        self._save()
-        return {**result, "image": img}
+                result = self.interactions.execute(self.pet, item_id, self.costumes)
+            except DianaError as exc:
+                return self._handle_interaction_error(exc)
+            self.events.track_interaction(self.pet, "food")
+            self._check_events(result)
+            img = None
+            if result["success"]:
+                item = self.interactions.items[item_id]
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_interaction_card(
+                            self.pet, item_id, item.get("emoji", "🍽️"),
+                            result["dialogue"], result["changes"],
+                        )
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, item_id)
+                    img = None
+            self._save()
+            return {**result, "image": img}
 
     async def play(self, activity_id: str) -> dict:
         """和嘉然玩耍."""
-        result = self.interactions.execute(self.pet, activity_id, self.costumes)
-        self.events.track_interaction(self.pet, "play")
-        self._check_events(result)
-        img = None
-        if result["success"]:
-            item = self.interactions.items[activity_id]
+        async with self._lock:
             try:
-                async with self._sem:
-                    img = await self.renderer.render_interaction_card(
-                        self.pet, activity_id, item.get("emoji", "🎮"),
-                        result["dialogue"], result["changes"],
-                    )
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, activity_id)
-                img = None
-        self._save()
-        return {**result, "image": img}
+                result = self.interactions.execute(self.pet, activity_id, self.costumes)
+            except DianaError as exc:
+                return self._handle_interaction_error(exc)
+            self.events.track_interaction(self.pet, "play")
+            self._check_events(result)
+            img = None
+            if result["success"]:
+                item = self.interactions.items[activity_id]
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_interaction_card(
+                            self.pet, activity_id, item.get("emoji", "🎮"),
+                            result["dialogue"], result["changes"],
+                        )
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, activity_id)
+                    img = None
+            self._save()
+            return {**result, "image": img}
 
     async def work(self, work_id: str) -> dict:
         """嘉然打工/直播."""
-        result = self.interactions.execute(self.pet, work_id, self.costumes)
-        self._check_events(result)
-        img = None
-        if result["success"]:
-            item = self.interactions.items[work_id]
+        async with self._lock:
             try:
-                async with self._sem:
-                    img = await self.renderer.render_interaction_card(
-                        self.pet, work_id, item.get("emoji", "💼"),
-                        result["dialogue"], result["changes"],
-                    )
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, work_id)
-                img = None
-        self._save()
-        return {**result, "image": img}
+                result = self.interactions.execute(self.pet, work_id, self.costumes)
+            except DianaError as exc:
+                return self._handle_interaction_error(exc)
+            self._check_events(result)
+            img = None
+            if result["success"]:
+                item = self.interactions.items[work_id]
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_interaction_card(
+                            self.pet, work_id, item.get("emoji", "💼"),
+                            result["dialogue"], result["changes"],
+                        )
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, work_id)
+                    img = None
+            self._save()
+            return {**result, "image": img}
 
     async def social(self, action_id: str) -> dict:
         """社交互动."""
-        result = self.interactions.execute(self.pet, action_id, self.costumes)
-        self._check_events(result)
-        img = None
-        if result["success"]:
-            item = self.interactions.items[action_id]
+        async with self._lock:
             try:
-                async with self._sem:
-                    img = await self.renderer.render_interaction_card(
-                        self.pet, action_id, item.get("emoji", "💬"),
-                        result["dialogue"], result["changes"],
-                    )
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, action_id)
-                img = None
-        self._save()
-        return {**result, "image": img}
+                result = self.interactions.execute(self.pet, action_id, self.costumes)
+            except DianaError as exc:
+                return self._handle_interaction_error(exc)
+            self._check_events(result)
+            img = None
+            if result["success"]:
+                item = self.interactions.items[action_id]
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_interaction_card(
+                            self.pet, action_id, item.get("emoji", "💬"),
+                            result["dialogue"], result["changes"],
+                        )
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, action_id)
+                    img = None
+            self._save()
+            return {**result, "image": img}
 
     async def daily(self, action_id: str) -> dict:
         """日常活动."""
-        result = self.interactions.execute(self.pet, action_id, self.costumes)
-        self._check_events(result)
-        img = None
-        if result["success"]:
-            item = self.interactions.items[action_id]
+        async with self._lock:
             try:
-                async with self._sem:
-                    img = await self.renderer.render_interaction_card(
-                        self.pet, action_id, item.get("emoji", "📋"),
-                        result["dialogue"], result["changes"],
-                    )
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, action_id)
-                img = None
-        self._save()
-        return {**result, "image": img}
+                result = self.interactions.execute(self.pet, action_id, self.costumes)
+            except DianaError as exc:
+                return self._handle_interaction_error(exc)
+            self._check_events(result)
+            img = None
+            if result["success"]:
+                item = self.interactions.items[action_id]
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_interaction_card(
+                            self.pet, action_id, item.get("emoji", "📋"),
+                            result["dialogue"], result["changes"],
+                        )
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_interaction_card failed for user=%s action=%s", self.pet.user_id, action_id)
+                    img = None
+            self._save()
+            return {**result, "image": img}
 
     # ── 换装 ──
 
@@ -245,24 +276,33 @@ class DianaPet:
 
     async def change_outfit(self, costume_id: str) -> dict:
         """手动切换到指定服装."""
-        result = self.costumes.change(self.pet, costume_id)
-        if result["success"]:
-            self._save()
-        return result
+        async with self._lock:
+            try:
+                result = self.costumes.change(self.pet, costume_id)
+            except DianaError as exc:
+                return {"success": False, "text": str(exc)}
+            if result["success"]:
+                self._save()
+            return result
 
     async def buy_costume(self, costume_id: str) -> dict:
         """购买/解锁服装."""
-        result = self.costumes.unlock(self.pet, costume_id)
-        if result["success"]:
-            self._save()
-        return result
+        async with self._lock:
+            try:
+                result = self.costumes.unlock(self.pet, costume_id)
+            except DianaError as exc:
+                return {"success": False, "text": str(exc)}
+            if result["success"]:
+                self._save()
+            return result
 
     async def random_change_outfit(self) -> dict:
         """随机换装."""
-        result = self.costumes.random_change(self.pet)
-        if result["success"]:
-            self._save()
-        return result
+        async with self._lock:
+            result = self.costumes.random_change(self.pet)
+            if result["success"]:
+                self._save()
+            return result
 
     async def costume_list_card(self) -> bytes | None:
         """渲染服装选择列表卡片，渲染失败时返回 None（调用方需降级为纯文本）."""
@@ -276,53 +316,55 @@ class DianaPet:
 
     async def talk(self, message: str) -> dict:
         """和嘉然聊天，自动检测关键词触发事件."""
-        events = self.events.check_keywords(self.pet, message)
-        self.pet.tick()
-        self.pet.check_daily_decay(today_str())
-        img = None
-        event_texts = []
-        if events:
-            for evt in events:
-                event_texts.append(evt.get("text", ""))
-            try:
-                async with self._sem:
-                    img = await self.renderer.render_event_card(events[0])
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_event_card failed for user=%s", self.pet.user_id)
-                img = None
-        elif message.strip():
-            # 没有触发事件时返回一条闲谈
-            idle = self.interactions.get_idle(self.pet)
-            event_texts.append(idle)
-        self._save()
-        return {
-            "text": "\n".join(event_texts) if event_texts else "...",
-            "meme_triggered": len(events) > 0,
-            "events": events,
-            "image": img,
-            "stats": self._stats_dict(),
-        }
+        async with self._lock:
+            events = self.events.check_keywords(self.pet, message)
+            self.pet.tick()
+            self.pet.check_daily_decay(today_str())
+            img = None
+            event_texts = []
+            if events:
+                for evt in events:
+                    event_texts.append(evt.get("text", ""))
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_event_card(events[0])
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_event_card failed for user=%s", self.pet.user_id)
+                    img = None
+            elif message.strip():
+                # 没有触发事件时返回一条闲谈
+                idle = self.interactions.get_idle(self.pet)
+                event_texts.append(idle)
+            self._save()
+            return {
+                "text": "\n".join(event_texts) if event_texts else "...",
+                "meme_triggered": len(events) > 0,
+                "events": events,
+                "image": img,
+                "stats": self._stats_dict(),
+            }
 
     async def status(self) -> dict:
         """获取嘉然当前状态卡片."""
-        self.pet.tick()
-        self.pet.check_daily_decay(today_str())
-        alerts = self.interactions.get_low_stat_alert(self.pet)
-        img = None
-        try:
-            async with self._sem:
-                img = await self.renderer.render_status_card(self.pet)
-        except _RENDER_EXCEPTIONS:
-            logger.exception("Diana render_status_card failed for user=%s", self.pet.user_id)
+        async with self._lock:
+            self.pet.tick()
+            self.pet.check_daily_decay(today_str())
+            alerts = self.interactions.get_low_stat_alert(self.pet)
             img = None
-        stats_text = self.interactions.get_status_text(self.pet)
-        self._save()
-        return {
-            "text": stats_text + ("\n\n⚠ " + alerts if alerts else ""),
-            "image": img,
-            "stats": self._stats_dict(),
-            "alerts": alerts,
-        }
+            try:
+                async with self._sem:
+                    img = await self.renderer.render_status_card(self.pet)
+            except _RENDER_EXCEPTIONS:
+                logger.exception("Diana render_status_card failed for user=%s", self.pet.user_id)
+                img = None
+            stats_text = self.interactions.get_status_text(self.pet)
+            self._save()
+            return {
+                "text": stats_text + ("\n\n⚠ " + alerts if alerts else ""),
+                "image": img,
+                "stats": self._stats_dict(),
+                "alerts": alerts,
+            }
 
     async def tick(self) -> dict:
         """时间流逝检查，返回触发的事件.
@@ -332,25 +374,26 @@ class DianaPet:
         在同一天被加 2。streak 更新交由 talk/status/feed/play 等用户主动
         动作触发。
         """
-        events = self.events.tick(self.pet)
-        images = []
-        event_texts = []
-        for evt in events:
-            img = None
-            try:
-                async with self._sem:
-                    img = await self.renderer.render_event_card(evt)
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_event_card failed for user=%s", self.pet.user_id)
-            images.append(img)
-            event_texts.append(evt.get("text", ""))
-        self._save()
-        return {
-            "events": events,
-            "event_texts": event_texts,
-            "images": images,
-            "stats": self._stats_dict(),
-        }
+        async with self._lock:
+            events = self.events.tick(self.pet)
+            images = []
+            event_texts = []
+            for evt in events:
+                img = None
+                try:
+                    async with self._sem:
+                        img = await self.renderer.render_event_card(evt)
+                except _RENDER_EXCEPTIONS:
+                    logger.exception("Diana render_event_card failed for user=%s", self.pet.user_id)
+                images.append(img)
+                event_texts.append(evt.get("text", ""))
+            self._save()
+            return {
+                "events": events,
+                "event_texts": event_texts,
+                "images": images,
+                "stats": self._stats_dict(),
+            }
 
     # ── 工具方法 ──
 
@@ -360,14 +403,10 @@ class DianaPet:
     def get_stats(self) -> dict:
         return self._stats_dict()
 
-    def set_user_birthday(self, birthday: str):
-        """设置用户生日 MM-DD，当天触发特殊事件."""
-        self.pet.achievement_flags["user_birthday"] = False  # Will check in tick
-        self.pet.achievement_flags["user_birthday_date"] = birthday
-
     async def close(self):
         """关闭当前实例（共享资源在 shutdown() 中统一释放）."""
-        self._save()
+        async with self._lock:
+            self._save()
 
     # ── 内部 ──
 

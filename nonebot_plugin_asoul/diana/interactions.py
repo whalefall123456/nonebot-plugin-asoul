@@ -7,8 +7,9 @@ from typing import Optional
 
 import yaml
 
-from .core import PetState
+from .core import PetState, AchievementFlag
 from .utils import today_str
+from .exceptions import ActionNotFoundError, InsufficientCoinsError
 
 
 class InteractionService:
@@ -22,6 +23,7 @@ class InteractionService:
         self.character = self._load_yaml("character.yaml")
         self.dialogues = self._load_yaml("dialogues.yaml")
         self._dialogue_history: dict[str, list[str]] = {}  # user_id -> recent dialogue keys
+        self.exp_multiplier = self.character.get("exp_closeness_multiplier", 2)
 
     def _load_yaml(self, filename: str) -> dict:
         path = self.data_dir / filename
@@ -48,7 +50,7 @@ class InteractionService:
     def execute(self, pet: PetState, action_id: str, costume_service=None) -> dict:
         """执行一个动作，返回结果."""
         if action_id not in self.items:
-            return {"success": False, "text": f"不知道'{action_id}'是什么呢……", "stats": {}, "image_needed": False}
+            raise ActionNotFoundError(action_id)
 
         item = self.items[action_id]
         category = item["category"]
@@ -56,22 +58,27 @@ class InteractionService:
         # 检查金币
         cost = item.get("coins", 0)
         if cost < 0 and pet.coins + cost < 0:
-            return {"success": False, "text": "嘉心糖币不够了……让然然去打工会不会好一点？", "stats": {}, "image_needed": False}
+            raise InsufficientCoinsError
 
-        # 特殊逻辑：喊一米八随机心情
-        mood_change = item["mood"]
-        if action_id == "喊一米八":
-            mood_change = random.choice([-15, -10, -5, 5, 10, 15])
+        # 构建 stat 变更：支持 <stat>_random 从列表中随机取值覆盖 <stat>
+        stat_keys = ("hunger", "mood", "energy", "closeness", "coins")
+        changes = {}
+        for key in stat_keys:
+            random_key = f"{key}_random"
+            if random_key in item:
+                changes[key] = random.choice(item[random_key])
+            else:
+                changes[key] = item.get(key, 0)
 
         # 应用属性变化
         old_level = pet.level
         pet.modify(
-            hunger=item.get("hunger", 0),
-            mood=mood_change,
-            energy=item.get("energy", 0),
-            closeness=item.get("closeness", 0),
-            coins=item.get("coins", 0),
-            exp=item.get("closeness", 0) * 2,  # 亲密度增益的2倍作为经验
+            hunger=changes["hunger"],
+            mood=changes["mood"],
+            energy=changes["energy"],
+            closeness=changes["closeness"],
+            coins=changes["coins"],
+            exp=changes.get("closeness", item.get("closeness", 0)) * self.exp_multiplier,
         )
 
         # 等级提升时检查服装解锁
@@ -87,13 +94,14 @@ class InteractionService:
 
         # 追踪成就计数
         if category == "food":
-            pet.achievement_flags["interaction_feed_count"] = pet.achievement_flags.get("interaction_feed_count", 0) + 1
+            pet.achievement_flags[AchievementFlag.INTERACTION_FEED_COUNT] = pet.achievement_flags.get(AchievementFlag.INTERACTION_FEED_COUNT, 0) + 1
         elif category == "play":
-            pet.achievement_flags["interaction_play_count"] = pet.achievement_flags.get("interaction_play_count", 0) + 1
+            pet.achievement_flags[AchievementFlag.INTERACTION_PLAY_COUNT] = pet.achievement_flags.get(AchievementFlag.INTERACTION_PLAY_COUNT, 0) + 1
 
-        # 换装逻辑
+        # 通用 on_execute 钩子
+        on_execute = item.get("on_execute")
         costume_result = None
-        if action_id == "换装" and costume_service:
+        if on_execute == "random_costume" and costume_service:
             costume_result = costume_service.random_change(pet)
 
         # 选择对话
@@ -118,13 +126,7 @@ class InteractionService:
                 "title": pet.title,
                 "streak_days": pet.streak_days,
             },
-            "changes": {
-                "hunger": item.get("hunger", 0),
-                "mood": mood_change,
-                "energy": item.get("energy", 0),
-                "closeness": item.get("closeness", 0),
-                "coins": item.get("coins", 0),
-            },
+            "changes": changes,
             "image_needed": True,
         }
         if costume_result and costume_result["success"]:

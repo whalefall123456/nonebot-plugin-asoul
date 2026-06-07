@@ -8,7 +8,7 @@ from typing import Optional
 
 import yaml
 
-from .core import PetState
+from .core import PetState, AchievementFlag
 from .utils import today_str
 
 
@@ -75,27 +75,14 @@ class EventManager:
             evt = self.special_dates[today_mmdd]
             # 生日周（前后3天）
             if today_mmdd in ["03-04", "03-05", "03-06", "03-07", "03-08", "03-09", "03-10"]:
-                if "birthday_week_triggered" not in pet.achievement_flags:
+                if AchievementFlag.BIRTHDAY_WEEK_TRIGGERED not in pet.achievement_flags:
                     self._apply_event(pet, evt)
                     triggered.append(evt)
-                    pet.achievement_flags["birthday_week_triggered"] = True
+                    pet.achievement_flags[AchievementFlag.BIRTHDAY_WEEK_TRIGGERED] = True
             elif today_mmdd not in pet.achievement_flags:
                 self._apply_event(pet, evt)
                 triggered.append(evt)
                 pet.achievement_flags[today_mmdd] = True
-
-        # 用户生日
-        if pet.achievement_flags.get("user_birthday"):
-            bday_evt = {
-                "id": "user_birthday",
-                "type": "special_date",
-                "name": "嘉心糖生日快乐",
-                "text": "🎂 今天是你的生日！嘉然为你准备了特别的祝福：「生日快乐！要成为全世界最开心的糖！」",
-                "effects": {"closeness": 30, "mood": 30},
-            }
-            self._apply_event(pet, bday_evt)
-            triggered.append(bday_evt)
-            pet.achievement_flags["user_birthday"] = False
 
         # 成就
         for ach in self.achievements:
@@ -116,14 +103,14 @@ class EventManager:
         for keyword, evt in self.meme_events.items():
             if keyword.lower() in text_lower or keyword in text:
                 evt_key = f"meme_{evt['id']}"
+                self_memes_key = AchievementFlag.MEME_TRIGGERS_COUNT
                 if evt_key not in pet.achievement_flags:
                     # 首次触发标记
                     pass
                 self._apply_event(pet, evt)
                 triggered.append(evt)
                 # 记录 meme 触发次数
-                meme_count_key = "meme_triggers_count"
-                pet.achievement_flags[meme_count_key] = pet.achievement_flags.get(meme_count_key, 0) + 1
+                pet.achievement_flags[self_memes_key] = pet.achievement_flags.get(self_memes_key, 0) + 1
                 break  # 一次只触发一个 meme 事件
         return triggered
 
@@ -150,29 +137,25 @@ class EventManager:
         if "level" in cond and pet.level < cond["level"]:
             return False
         if "interaction_feed_count" in cond:
-            feed_count = pet.achievement_flags.get("interaction_feed_count", 0)
+            feed_count = pet.achievement_flags.get(AchievementFlag.INTERACTION_FEED_COUNT, 0)
             if feed_count < cond["interaction_feed_count"]:
                 return False
         if "interaction_play_count" in cond:
-            play_count = pet.achievement_flags.get("interaction_play_count", 0)
+            play_count = pet.achievement_flags.get(AchievementFlag.INTERACTION_PLAY_COUNT, 0)
             if play_count < cond["interaction_play_count"]:
                 return False
         if "meme_triggers" in cond:
-            meme_count = pet.achievement_flags.get("meme_triggers_count", 0)
+            meme_count = pet.achievement_flags.get(AchievementFlag.MEME_TRIGGERS_COUNT, 0)
             if meme_count < cond["meme_triggers"]:
-                return False
-        if "on_birthday" in cond:
-            today = today_str()
-            if today[5:] != "03-07":
                 return False
         return True
 
     def track_interaction(self, pet: PetState, category: str):
         """跟踪互动类型计数（用于成就）."""
         if category == "food":
-            key = "interaction_feed_count"
+            key = AchievementFlag.INTERACTION_FEED_COUNT
         elif category == "play":
-            key = "interaction_play_count"
+            key = AchievementFlag.INTERACTION_PLAY_COUNT
         else:
             return
         pet.achievement_flags[key] = pet.achievement_flags.get(key, 0) + 1

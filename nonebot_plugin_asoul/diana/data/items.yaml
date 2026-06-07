@@ -405,7 +405,8 @@ Switch游戏:
 喊一米八:
   category: social
   hunger: 0
-  mood: 0    # 随机±10
+  mood: 0
+  mood_random: [-15, -10, -5, 5, 10, 15]
   energy: 0
   closeness: 3
   coins: 0
@@ -522,6 +523,7 @@ Mua:
   coins: -30
   description: 换一套可爱的衣服
   emoji: 👗
+  on_execute: random_costume
 
 自画像:
   category: daily
