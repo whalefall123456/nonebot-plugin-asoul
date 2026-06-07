@@ -78,17 +78,6 @@ class EventManager:
                 triggered.append(evt)
                 pet.achievement_flags[today_mmdd] = True
 
-        # 生日周（03-04 到 03-10，仅在生日周期间触发一次）
-        birthday_week_dates = ["03-04", "03-05", "03-06", "03-07", "03-08", "03-09", "03-10"]
-        if today_mmdd in birthday_week_dates:
-            if AchievementFlag.BIRTHDAY_WEEK_TRIGGERED not in pet.achievement_flags:
-                # 生日周事件：如果该日期有 special_date 配置则用它的效果，否则用嘉然生日事件
-                bday_evt = self.special_dates.get(today_mmdd, self.special_dates.get("03-07"))
-                if bday_evt:
-                    self._apply_event(pet, bday_evt)
-                    triggered.append(bday_evt)
-                pet.achievement_flags[AchievementFlag.BIRTHDAY_WEEK_TRIGGERED] = True
-
         # 成就
         for ach in self.achievements:
             cond = ach.get("condition", {})

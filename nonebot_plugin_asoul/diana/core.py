@@ -18,7 +18,6 @@ class AchievementFlag:
     INTERACTION_FEED_COUNT = "interaction_feed_count"
     INTERACTION_PLAY_COUNT = "interaction_play_count"
     MEME_TRIGGERS_COUNT = "meme_triggers_count"
-    BIRTHDAY_WEEK_TRIGGERED = "birthday_week_triggered"
 
 # ── 衰减速率 ──
 DECAY_HUNGER_PER_HOUR = 2.5        # 每小时饱腹 -2.5
