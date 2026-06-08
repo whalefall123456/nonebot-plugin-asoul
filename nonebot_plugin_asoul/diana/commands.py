@@ -2,8 +2,9 @@
 @Author: star_482
 @Date: 2026/5/18
 @File: commands
-@Description: NoneBot 命令注册层——将 diana 包的 API 暴露为 QQ Bot 指令.
+@Description: NoneBot 命令注册层——将 DianaSession 暴露为 QQ Bot 指令.
 """
+
 import asyncio
 import logging
 from collections import OrderedDict
@@ -20,56 +21,40 @@ from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
 from ..config import config
 
 logger = logging.getLogger(__name__)
-from .api import DianaPet, shutdown
 
-USER_CACHE: OrderedDict[str, DianaPet] = OrderedDict()
+from .session import DianaSession, shutdown
+from .exceptions import DianaError
+
+# ── 用户缓存 ──
+
+USER_CACHE: OrderedDict[str, DianaSession] = OrderedDict()
 CACHE_MAX_SIZE = 500
-# 模块级单锁：保护 USER_CACHE 写入与 CACHE_MAX_SIZE 触达时的驱逐路径，
-# 防止同 user_id 并发请求时创建重复 DianaPet 实例。
 USER_CACHE_LOCK = asyncio.Lock()
 
-# diana 包内自带 data/ 与 assets/，与代码一起发布；saves 走 config.data_path。
-_DIANA_PACKAGE_DIR = Path(__file__).parent
 
-
-def _diana_data_dir() -> Path:
-    return _DIANA_PACKAGE_DIR / "data"
-
-
-def _diana_assets_dir() -> Path:
-    return _DIANA_PACKAGE_DIR / "assets"
-
-
-def _diana_saves_dir() -> Path:
-    return Path(config.data_path) / config.diana_saves_dir
-
-
-async def get_diana(user_id: str) -> DianaPet:
-    """获取或创建 DianaPet 实例，LRU 淘汰."""
+async def get_session(user_id: str) -> DianaSession:
+    """获取或创建 DianaSession，LRU 淘汰."""
     if user_id in USER_CACHE:
         USER_CACHE.move_to_end(user_id)
         return USER_CACHE[user_id]
     async with USER_CACHE_LOCK:
-        # 双重检查：拿锁后可能已被其他协程创建。
         if user_id in USER_CACHE:
             USER_CACHE.move_to_end(user_id)
             return USER_CACHE[user_id]
         if len(USER_CACHE) >= CACHE_MAX_SIZE:
-            oldest_key, oldest_diana = USER_CACHE.popitem(last=False)
+            oldest_key, oldest_session = USER_CACHE.popitem(last=False)
             try:
-                await oldest_diana.close()
+                await oldest_session.close()
             except Exception:
-                logger.exception("Diana close() failed during eviction for user=%s", oldest_key)
-        USER_CACHE[user_id] = DianaPet(
-            user_id=user_id,
-            data_dir=_diana_data_dir(),
-            assets_dir=_diana_assets_dir(),
-            saves_dir=_diana_saves_dir(),
-        )
+                logger.exception("DianaSession close() failed during eviction for user=%s", oldest_key)
+        USER_CACHE[user_id] = DianaSession(user_id=user_id)
     return USER_CACHE[user_id]
 
 
-async def send_result(result: dict, matcher: Matcher):
+# ── 工具函数 ──
+
+async def send_result(result: dict, matcher: Matcher) -> None:
+    """统一发送结果."""
     message = UniMessage()
     if image := result.get("image"):
         message.append(Image(raw=image))
@@ -84,23 +69,31 @@ def _extract_arg(args: Message) -> str:
     return args.extract_plain_text().strip()
 
 
+def _error_result(exc: DianaError) -> dict:
+    return {"success": False, "text": str(exc), "stats": {}}
+
+
+# ── Shutdown ──
+
 driver = get_driver()
 
 
 @driver.on_shutdown
-async def _shutdown():
-    # 外层 try/finally 保证 Chromium 一定被关——单 user 的 close() 抛 I/O 错误
-    # （磁盘满 / 文件锁）也不能让 renderer 进程残留。
+async def _shutdown() -> None:
     try:
-        for diana in USER_CACHE.values():
+        for session in USER_CACHE.values():
             try:
-                await diana.close()
+                await session.close()
             except Exception:
-                logger.exception("Diana close() failed during shutdown for user=%s",
-                                 getattr(getattr(diana, "pet", None), "user_id", "?"))
+                logger.exception(
+                    "DianaSession close() failed during shutdown for user=%s",
+                    getattr(getattr(session, "pet", None), "user_id", "?"),
+                )
     finally:
         await shutdown()
 
+
+# ── 命令注册 ──
 
 diana_status = on_command("然然状态", aliases={"状态", "我的然然", "然然信息"}, priority=config.command_priority)
 diana_wardrobe = on_command("然然衣柜", aliases={"服装", "衣柜", "换装列表"}, priority=config.command_priority)
@@ -110,82 +103,99 @@ diana_work = on_command("打工", aliases={"直播", "工作"}, priority=config.
 diana_costume = on_command("换装", aliases={"换上", "穿"}, priority=config.command_priority)
 diana_unlock = on_command("解锁", aliases={"购买"}, priority=config.command_priority)
 diana_talk = on_command("然然", aliases={"然然聊天"}, priority=config.command_priority)
-# /互动 暴露 YAML category=social 的 10 个动作（摸摸头 / Mua / 喊一米八 / 叫嘉门 / …）。
-# YAML 内部 category 仍叫 social，只是用户面向层用"互动"更自然。
 diana_interact = on_command("互动", aliases={"撒娇", "和然然互动"}, priority=config.command_priority)
-# /日常 暴露 YAML category=daily 的 8 个动作（休息 / 逛街 / 刷B站 / …）。
 diana_daily = on_command("日常", aliases={"日常活动"}, priority=config.command_priority)
 diana_help = on_command("然然帮助", aliases={"宠物帮助", "然然指令"}, priority=config.command_priority)
 
 
-@diana_status.handle()
-async def _(event: Event, matcher: Matcher):
-    diana = await get_diana(event.get_user_id())
-    result = await diana.status()
-    await send_result(result, matcher)
-
-
-@diana_wardrobe.handle()
-async def _(event: Event):
-    diana = await get_diana(event.get_user_id())
-    img = await diana.costume_list_card()
-    message = UniMessage(Text("🎀 然然的衣柜："))
-    if img is not None:
-        message.append(Image(raw=img))
-    else:
-        message.append(Text("\n（衣柜卡片渲染失败，请稍后再试）"))
-    await message.send()
-
+# ── 互动 handler（5 个统一路径：interact）──
 
 @diana_feed.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    item = _extract_arg(args)
-    if not item:
+    action_id = _extract_arg(args)
+    if not action_id:
         await diana_feed.finish("要吃什么呢？比如：/吃 鸡胸肉、/吃 小草莓、/吃 薯片")
-    diana = await get_diana(event.get_user_id())
-    result = await diana.feed(item)
+    session = await get_session(event.get_user_id())
+    try:
+        result = await session.interact(action_id)
+    except DianaError as exc:
+        result = _error_result(exc)
     await send_result(result, matcher)
 
 
 @diana_play.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    activity = _extract_arg(args)
-    if not activity:
+    action_id = _extract_arg(args)
+    if not action_id:
         await diana_play.finish("玩什么呢？比如：/玩 连连看、/玩 宅舞一支、/玩 你画我猜")
-    diana = await get_diana(event.get_user_id())
-    result = await diana.play(activity)
+    session = await get_session(event.get_user_id())
+    try:
+        result = await session.interact(action_id)
+    except DianaError as exc:
+        result = _error_result(exc)
     await send_result(result, matcher)
 
 
 @diana_work.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    work_name = _extract_arg(args)
-    if not work_name:
+    action_id = _extract_arg(args)
+    if not action_id:
         await diana_work.finish("做什么工作呢？比如：/打工 日常直播、/打工 生日会直播、/打工 团播")
-    diana = await get_diana(event.get_user_id())
-    result = await diana.work(work_name)
+    session = await get_session(event.get_user_id())
+    try:
+        result = await session.interact(action_id)
+    except DianaError as exc:
+        result = _error_result(exc)
     await send_result(result, matcher)
 
 
+@diana_interact.handle()
+async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
+    action_id = _extract_arg(args)
+    if not action_id:
+        await diana_interact.finish("要和然然做什么互动呢？比如：/互动 摸摸头、/互动 Mua、/互动 喊一米八")
+    session = await get_session(event.get_user_id())
+    try:
+        result = await session.interact(action_id)
+    except DianaError as exc:
+        result = _error_result(exc)
+    await send_result(result, matcher)
+
+
+@diana_daily.handle()
+async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
+    action_id = _extract_arg(args)
+    if not action_id:
+        await diana_daily.finish("和然然一起做什么呢？比如：/日常 休息、/日常 逛街、/日常 刷B站")
+    session = await get_session(event.get_user_id())
+    try:
+        result = await session.interact(action_id)
+    except DianaError as exc:
+        result = _error_result(exc)
+    await send_result(result, matcher)
+
+
+# ── 换装 handler（不走互动管道）──
+
 @diana_costume.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    costume_name = _extract_arg(args)
-    diana = await get_diana(event.get_user_id())
-    if not costume_name:
-        result = await diana.random_change_outfit()
-    elif matched := diana.costumes.match_by_name(costume_name, diana.pet):
-        result = await diana.change_outfit(matched["id"])
+    name = _extract_arg(args)
+    session = await get_session(event.get_user_id())
+    if not name:
+        result = await session.random_outfit()
+    elif matched := session.match_costume(name):
+        result = await session.change_outfit(matched["id"])
     else:
-        result = {"success": False, "text": f"没有找到'{costume_name}'这件服装呢……"}
+        result = {"success": False, "text": f"没有找到'{name}'这件服装呢……"}
     await send_result(result, matcher)
 
 
 @diana_unlock.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    costume_name = _extract_arg(args)
-    diana = await get_diana(event.get_user_id())
-    if not costume_name:
-        locked = [costume for costume in diana.list_costumes() if not costume["owned"]]
+    name = _extract_arg(args)
+    session = await get_session(event.get_user_id())
+    if not name:
+        locked = [c for c in session.list_costumes() if not c["owned"]]
         if not locked:
             await diana_unlock.finish("你已经解锁了全部服装！")
         lines = ["可解锁的服装："]
@@ -201,37 +211,38 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
                 condition = "特殊条件"
             lines.append(f"{costume['emoji']} {costume['name']} - {condition}")
         await diana_unlock.finish("\n".join(lines))
-    elif matched := diana.costumes.match_by_name(costume_name, diana.pet):
-        result = await diana.buy_costume(matched["id"])
+    elif matched := session.match_costume(name):
+        result = await session.buy_costume(matched["id"])
     else:
-        result = {"success": False, "text": f"没有找到'{costume_name}'这件服装呢……"}
+        result = {"success": False, "text": f"没有找到'{name}'这件服装呢……"}
     await send_result(result, matcher)
+
+
+# ── 其他 handler ──
+
+@diana_status.handle()
+async def _(event: Event, matcher: Matcher):
+    session = await get_session(event.get_user_id())
+    result = await session.status()
+    await send_result(result, matcher)
+
+
+@diana_wardrobe.handle()
+async def _(event: Event):
+    session = await get_session(event.get_user_id())
+    img = await session.costume_list_card()
+    message = UniMessage(Text("🎀 然然的衣柜："))
+    if img is not None:
+        message.append(Image(raw=img))
+    else:
+        message.append(Text("\n（衣柜卡片渲染失败，请稍后再试）"))
+    await message.send()
 
 
 @diana_talk.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    diana = await get_diana(event.get_user_id())
-    result = await diana.talk(_extract_arg(args))
-    await send_result(result, matcher)
-
-
-@diana_interact.handle()
-async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    action = _extract_arg(args)
-    if not action:
-        await diana_interact.finish("要和然然做什么互动呢？比如：/互动 摸摸头、/互动 Mua、/互动 喊一米八")
-    diana = await get_diana(event.get_user_id())
-    result = await diana.social(action)
-    await send_result(result, matcher)
-
-
-@diana_daily.handle()
-async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
-    action = _extract_arg(args)
-    if not action:
-        await diana_daily.finish("和然然一起做什么呢？比如：/日常 休息、/日常 逛街、/日常 刷B站")
-    diana = await get_diana(event.get_user_id())
-    result = await diana.daily(action)
+    session = await get_session(event.get_user_id())
+    result = await session.talk(_extract_arg(args))
     await send_result(result, matcher)
 
 

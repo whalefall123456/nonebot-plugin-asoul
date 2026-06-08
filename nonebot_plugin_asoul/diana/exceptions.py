@@ -38,3 +38,37 @@ class CostumeNotFoundError(DianaError):
     def __init__(self, costume_id: str):
         self.costume_id = costume_id
         super().__init__(f"没有'{costume_id}'这件服装呢……")
+
+
+class InsufficientStatError(DianaError):
+    """前置条件不满足——某个 stat 不足."""
+
+    STAT_LABELS = {
+        "coins": "嘉心糖币", "energy": "体力", "hunger": "饱腹度",
+        "mood": "心情", "closeness": "亲密度",
+    }
+
+    def __init__(self, stat: str, current: int, required: int):
+        self.stat = stat
+        self.current = current
+        self.required = required
+        label = self.STAT_LABELS.get(stat, stat)
+        super().__init__(f"{label}不足（需要 {required}，当前 {current}）")
+
+
+class PetBusyError(DianaError):
+    """宠物忙碌中——上一个互动的耗时还未结束."""
+
+    def __init__(self, remain_seconds: int):
+        self.remain = remain_seconds
+        if remain_seconds >= 3600:
+            h = remain_seconds // 3600
+            m = (remain_seconds % 3600) // 60
+            remain_str = f"{h}小时{m}分钟" if m else f"{h}小时"
+        elif remain_seconds >= 60:
+            m = remain_seconds // 60
+            s = remain_seconds % 60
+            remain_str = f"{m}分钟{s}秒" if s else f"{m}分钟"
+        else:
+            remain_str = f"{remain_seconds}秒"
+        super().__init__(f"然然还在忙呢……还要等{remain_str}哦~")
