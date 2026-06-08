@@ -17,6 +17,7 @@ from typing import Callable, Optional
 import yaml
 
 from .core import PetState, AchievementFlag
+from .dialogues import DialogueSet, DialogueRegistry
 from .utils import today_str
 
 

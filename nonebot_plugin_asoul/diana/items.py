@@ -12,7 +12,7 @@ from typing import Optional
 import yaml
 
 from .core import PetState
-from .dialogues import DialogueSet
+from .dialogues import DialogueSet,DialogueRegistry
 from .exceptions import ActionNotFoundError, InsufficientStatError
 
 # ── 经验倍率 ──
