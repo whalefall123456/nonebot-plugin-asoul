@@ -121,11 +121,6 @@ def _build_interaction_msg(result: dict) -> MessageSegment:
         lines.append("")
         lines.append(cb)
 
-    # 换装触发
-    if cc := result.get("costume_changed"):
-        lines.append("")
-        lines.append(cc)
-
     return MessageSegment.markdown("\n".join(lines).strip())
 
 
