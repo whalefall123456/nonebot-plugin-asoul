@@ -60,14 +60,14 @@ async def get_session(user_id: str) -> DianaSession:
 # ── MD 消息构造 ──
 
 def _md_image(url: str, width: int, height: int, alt: str = "") -> str:
-    """生成 QQ Markdown 图片字面量."""
+    """QQ Markdown 图片字面量."""
     if not url or width <= 0 or height <= 0:
         return ""
     return f"![{alt} #{width}px #{height}px]({url})"
 
 
-def _changes_line(changes: dict) -> str:
-    """stat 变化 → 单行文本：🍽️ 饱腹 +25  ·  😊 心情 +15."""
+def _changes_text(changes: dict) -> str:
+    """stat 变化 → 单行：🍽️ 饱腹 +25  ·  😊 心情 +15."""
     parts = []
     for key, label, icon in _CHANGE_LABELS:
         val = changes.get(key, 0)
@@ -75,145 +75,120 @@ def _changes_line(changes: dict) -> str:
             continue
         sign = "+" if val > 0 else ""
         parts.append(f"{icon} {label} {sign}{val}")
-    return "  ·  ".join(parts) if parts else ""
+    return "  ·  ".join(parts)
 
 
-def _build_interaction_md(result: dict) -> str | None:
-    """构建互动结果 MD。COS 不可用时返回 None 触发降级."""
+def _build_text_msg(text: str) -> MessageSegment:
+    return MessageSegment.markdown(str(text))
+
+
+def _build_interaction_msg(result: dict) -> MessageSegment:
+    """构建互动结果 MD. 无 COS URL 时降级为纯文本."""
     img_url = result.get("image_url")
-    if not img_url:
-        return None  # COS miss → 降级为本地图片
-
     lines = []
 
     # 交互卡片图
-    img_line = _md_image(img_url,
-                         result.get("image_width", 0),
-                         result.get("image_height", 0))
-    if img_line:
-        lines.append(img_line)
-        lines.append("")
-
-    # 对话文本
-    if dialogue := result.get("dialogue"):
-        lines.append(f"> {dialogue}")
-        lines.append("")
-
-    # stat 变化行
-    if changes := result.get("changes"):
-        line = _changes_line(changes)
-        if line:
-            lines.append(line)
-            lines.append("")
-
-    # 事件卡片 + 文本
-    event_texts = result.get("events_triggered", [])
-    event_urls = result.get("event_urls", [])
-    for i, evt_text in enumerate(event_texts):
-        if i < len(event_urls) and event_urls[i]:
-            evt_img = _md_image(event_urls[i], 600, 380)
-            if evt_img:
-                lines.append("---")
-                lines.append(evt_img)
-                lines.append("")
-        lines.append(evt_text)
-        lines.append("")
-
-    # 金币掉落
-    if coin_bonus := result.get("coin_bonus"):
-        lines.append(coin_bonus)
-        lines.append("")
-
-    # 换装触发
-    if costume_changed := result.get("costume_changed"):
-        lines.append(costume_changed)
-        lines.append("")
-
-    return "\n".join(lines).strip()
-
-
-def _build_error_md(result: dict) -> str:
-    """构建错误提示 MD."""
-    return str(result.get("text", "发生了一个未知错误……"))
-
-
-def _build_status_md(result: dict) -> str | None:
-    """构建状态卡片 MD."""
-    img_url = result.get("image_url")
-    if not img_url:
-        return None
-    img_line = _md_image(img_url,
-                         result.get("image_width", 0),
-                         result.get("image_height", 0))
-    if not img_line:
-        return None
-    lines = [img_line]
-    if alerts := result.get("alerts"):
-        lines.append("")
-        lines.append(f"⚠ {alerts}")
-    return "\n".join(lines)
-
-
-def _build_talk_md(result: dict) -> str | None:
-    """构建聊天 MD（梗事件 or 闲谈）."""
-    img_url = result.get("image_url")
-    if not img_url and result.get("meme_triggered"):
-        return None  # 梗事件但 COS miss → 降级
-    lines = []
     if img_url:
-        img_line = _md_image(img_url, 600, 380)
-        if img_line:
+        img_w = result.get("image_width", 0)
+        img_h = result.get("image_height", 0)
+        if img_line := _md_image(img_url, img_w, img_h):
             lines.append(img_line)
             lines.append("")
-    if text := result.get("text"):
-        lines.append(text)
-    return "\n".join(lines).strip() if lines else str(result.get("text", "..."))
+
+    # 对话
+    if dialogue := result.get("dialogue"):
+        lines.append(f"> {dialogue}")
+
+    # stat 变化
+    if changes := result.get("changes"):
+        if cl := _changes_text(changes):
+            lines.append("")
+            lines.append(cl)
+
+    # 事件
+    if et := result.get("events_triggered"):
+        lines.append("")
+        for i, t in enumerate(et):
+            urls = result.get("event_urls", [])
+            if i < len(urls) and urls[i]:
+                if ei := _md_image(urls[i], 600, 380):
+                    lines.append(ei)
+                    lines.append("")
+            lines.append(t)
+
+    # 金币掉落
+    if cb := result.get("coin_bonus"):
+        lines.append("")
+        lines.append(cb)
+
+    # 换装触发
+    if cc := result.get("costume_changed"):
+        lines.append("")
+        lines.append(cc)
+
+    return MessageSegment.markdown("\n".join(lines).strip())
 
 
-def _build_costume_md(result: dict) -> str | None:
+def _build_status_msg(result: dict) -> MessageSegment:
+    """构建状态卡片 MD."""
+    lines = []
+    if img_url := result.get("image_url"):
+        img_w = result.get("image_width", 0)
+        img_h = result.get("image_height", 0)
+        if il := _md_image(img_url, img_w, img_h):
+            lines.append(il)
+    if alerts := result.get("alerts"):
+        if lines:
+            lines.append("")
+        lines.append(f"⚠ {alerts}")
+    if not lines:
+        lines.append(str(result.get("text", "...")))
+    return MessageSegment.markdown("\n".join(lines))
+
+
+def _build_talk_msg(result: dict) -> MessageSegment:
+    """构建聊天 MD."""
+    lines = []
+    if img_url := result.get("image_url"):
+        if il := _md_image(img_url, 600, 380):
+            lines.append(il)
+            lines.append("")
+    lines.append(str(result.get("text", "...")))
+    return MessageSegment.markdown("\n".join(lines))
+
+
+def _build_costume_msg(result: dict) -> MessageSegment:
     """构建衣柜卡片 MD."""
     img_url = result.get("image_url")
-    if not img_url:
-        return None
-    img_line = _md_image(img_url,
-                         result.get("image_width", 0),
-                         result.get("image_height", 0))
-    return img_line or None
+    img_w = result.get("image_width", 0)
+    img_h = result.get("image_height", 0)
+    if il := _md_image(img_url, img_w, img_h):
+        return MessageSegment.markdown(il)
+    if img := result.get("image"):
+        from nonebot_plugin_alconna.uniseg import Image as UniImage
+        return UniImage(raw=img)
+    return MessageSegment.markdown("（衣柜卡片渲染失败，请稍后再试）")
 
 
-async def send_result(result: dict, matcher: Matcher) -> None:
-    """根据 result 内容构造 MD 消息发送；COS 不可用时降级为本地图片."""
-    from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
+async def send_result(result: dict, matcher: Matcher, kind: str = "text") -> None:
+    """发送 result 为 QQ MD 消息.
 
-    md_content = None
-
-    # 按消息类型选择 MD 构造器
-    if not result.get("success", True):
-        md_content = _build_error_md(result)
-    elif "changes" in result:
-        md_content = _build_interaction_md(result)
-    elif "alerts" in result or result.get("stats"):
-        md_content = _build_status_md(result)
-    elif "meme_triggered" in result:
-        md_content = _build_talk_md(result)
-    elif "image_url" in result and result.get("image_url"):
-        md_content = _build_costume_md(result)
-    else:
-        md_content = result.get("text") or str(result)
-
-    if md_content:
-        await MessageSegment.markdown(md_content).send()
-        return
-
-    # ── COS 降级：本地图片 ──
-    message = UniMessage()
-    if image := result.get("image"):
-        message.append(Image(raw=image))
-    if text := result.get("text"):
-        message.append(Text(text))
-    if events := result.get("events_triggered"):
-        message.append(Text("\n\n" + "\n".join(events)))
-    await message.send()
+    kind 由调用方显式指定：
+    - "interaction"  互动结果（喂食/玩耍/工作/社交/日常）
+    - "status"       状态卡片
+    - "talk"         聊天
+    - "costume"      衣柜
+    - "text"         纯文本（错误/换装/帮助等）
+    """
+    build = {
+        "interaction": _build_interaction_msg,
+        "status": _build_status_msg,
+        "talk": _build_talk_msg,
+        "costume": _build_costume_msg,
+        "text": lambda r: _build_text_msg(r.get("text", str(r))),
+    }
+    builder = build.get(kind, build["text"])
+    await matcher.send(builder(result))
 
 
 def _extract_arg(args: Message) -> str:
@@ -271,7 +246,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.interact(action_id)
     except DianaError as exc:
         result = _error_result(exc)
-    await send_result(result, matcher)
+    await send_result(result, matcher, "interaction")
 
 
 @diana_play.handle()
@@ -284,7 +259,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.interact(action_id)
     except DianaError as exc:
         result = _error_result(exc)
-    await send_result(result, matcher)
+    await send_result(result, matcher, "interaction")
 
 
 @diana_work.handle()
@@ -297,7 +272,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.interact(action_id)
     except DianaError as exc:
         result = _error_result(exc)
-    await send_result(result, matcher)
+    await send_result(result, matcher, "interaction")
 
 
 @diana_interact.handle()
@@ -310,7 +285,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.interact(action_id)
     except DianaError as exc:
         result = _error_result(exc)
-    await send_result(result, matcher)
+    await send_result(result, matcher, "interaction")
 
 
 @diana_daily.handle()
@@ -323,7 +298,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.interact(action_id)
     except DianaError as exc:
         result = _error_result(exc)
-    await send_result(result, matcher)
+    await send_result(result, matcher, "interaction")
 
 
 # ── 换装 handler（不走互动管道）──
@@ -338,7 +313,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.change_outfit(matched["id"])
     else:
         result = {"success": False, "text": f"没有找到'{name}'这件服装呢……"}
-    await send_result(result, matcher)
+    await send_result(result, matcher, "text")
 
 
 @diana_unlock.handle()
@@ -366,7 +341,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
         result = await session.buy_costume(matched["id"])
     else:
         result = {"success": False, "text": f"没有找到'{name}'这件服装呢……"}
-    await send_result(result, matcher)
+    await send_result(result, matcher, "text")
 
 
 # ── 其他 handler ──
@@ -375,7 +350,7 @@ async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
 async def _(event: Event, matcher: Matcher):
     session = await get_session(event.get_user_id())
     result = await session.status()
-    await send_result(result, matcher)
+    await send_result(result, matcher, "status")
 
 
 @diana_wardrobe.handle()
@@ -384,14 +359,14 @@ async def _(event: Event, matcher: Matcher):
     result = await session.costume_list_card()
     if not result.get("image_url") and not result.get("image"):
         result["text"] = "（衣柜卡片渲染失败，请稍后再试）"
-    await send_result(result, matcher)
+    await send_result(result, matcher, "costume")
 
 
 @diana_talk.handle()
 async def _(event: Event, matcher: Matcher, args: Message = CommandArg()):
     session = await get_session(event.get_user_id())
     result = await session.talk(_extract_arg(args))
-    await send_result(result, matcher)
+    await send_result(result, matcher, "talk")
 
 
 @diana_help.handle()
