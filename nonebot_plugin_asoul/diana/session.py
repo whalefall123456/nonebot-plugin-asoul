@@ -291,7 +291,7 @@ class DianaSession:
                         busy_action=self.busy_action,
                     )
 
-            img_url, _, _, img = await self._upload_card(
+            img_url, img_w, img_h, img = await self._upload_card(
                 recipe, producer, KEY_PREFIX["addressed_diana_status"],
             )
 
@@ -302,6 +302,8 @@ class DianaSession:
                 "text": stats_text + ("\n\n⚠ " + alerts if alerts else ""),
                 "image": img,
                 "image_url": img_url,
+                "image_width": img_w,
+                "image_height": img_h,
                 "stats": self._stats_dict(),
                 "alerts": alerts,
             }
