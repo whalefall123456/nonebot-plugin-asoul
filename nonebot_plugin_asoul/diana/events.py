@@ -129,9 +129,10 @@ class Event:
         raise NotImplementedError
 
     def apply(self, pet: PetState) -> None:
-        """将事件效果应用到宠物."""
+        """将事件效果应用到宠物（含随机金币掉落 5-10）."""
         if self.effects:
             pet.modify(**self.effects)
+        pet.coins += random.randint(5, 10)
 
 
 @dataclass

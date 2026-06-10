@@ -19,10 +19,10 @@ class AchievementFlag:
     INTERACTION_PLAY_COUNT = "interaction_play_count"
     MEME_TRIGGERS_COUNT = "meme_triggers_count"
 
-# ── 衰减速率 ──
-DECAY_HUNGER_PER_HOUR = 2.5        # 每小时饱腹 -2.5
+# ── 衰减 / 恢复速率 ──
+DECAY_HUNGER_PER_HOUR = 1.0        # 每小时饱腹 -1.0
 DECAY_MOOD_PER_HOUR = 2.0          # 每小时心情 -2.0
-DECAY_ENERGY_PER_HOUR = 1.0        # 每小时体力 -1.0
+ENERGY_RECOVERY_PER_HOUR = 2.5     # 每小时体力 +2.5（被动恢复）
 DECAY_CLOSENESS_PER_DAY = 3.0      # 每天未互动亲密度 -3
 
 # ── 升级经验 ──
@@ -121,10 +121,10 @@ class PetState:
         if elapsed_hours <= 0:
             return {}
 
-        # 衰减计算
+        # 衰减 / 恢复计算
         self.hunger -= int(DECAY_HUNGER_PER_HOUR * elapsed_hours)
         self.mood -= int(DECAY_MOOD_PER_HOUR * elapsed_hours)
-        self.energy -= int(DECAY_ENERGY_PER_HOUR * elapsed_hours)
+        self.energy += int(ENERGY_RECOVERY_PER_HOUR * elapsed_hours)
 
         # 饱腹归零时额外扣心情
         if self.hunger <= 0:

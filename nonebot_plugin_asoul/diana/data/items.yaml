@@ -8,7 +8,7 @@
   effects:
     hunger: 15
     mood: 5
-    closeness: 2
+    closeness: 1
     coins: -8
 可乐:
   category: food
@@ -20,7 +20,7 @@
   effects:
     hunger: 5
     mood: 10
-    closeness: 2
+    closeness: 1
     coins: -5
 鸡胸肉:
   category: food
@@ -33,7 +33,7 @@
     hunger: 25
     mood: 15
     energy: 5
-    closeness: 10
+    closeness: 3
     coins: -12
 小草莓:
   category: food
@@ -45,7 +45,7 @@
   effects:
     hunger: 10
     mood: 18
-    closeness: 12
+    closeness: 3
     coins: -15
 螺蛳粉:
   category: food
@@ -57,7 +57,7 @@
   effects:
     hunger: 30
     mood: 8
-    closeness: 5
+    closeness: 2
     coins: -10
 抹茶零食:
   category: food
@@ -69,7 +69,7 @@
   effects:
     hunger: 12
     mood: 12
-    closeness: 5
+    closeness: 2
     coins: -12
 辣子鸡:
   category: food
@@ -81,7 +81,7 @@
   effects:
     hunger: 20
     mood: -15
-    closeness: 2
+    closeness: 1
     coins: -10
 煎饺:
   category: food
@@ -93,7 +93,7 @@
   effects:
     hunger: 18
     mood: 10
-    closeness: 5
+    closeness: 2
     coins: -8
 脆油条:
   category: food
@@ -105,7 +105,7 @@
   effects:
     hunger: 15
     mood: 5
-    closeness: 3
+    closeness: 1
     coins: -5
 烤串:
   category: food
@@ -117,7 +117,7 @@
   effects:
     hunger: 22
     mood: 10
-    closeness: 5
+    closeness: 2
     coins: -15
 可颂:
   category: food
@@ -129,7 +129,7 @@
   effects:
     hunger: 18
     mood: 8
-    closeness: 5
+    closeness: 2
     coins: -10
 蟹炒年糕:
   category: food
@@ -142,7 +142,7 @@
     hunger: 28
     mood: 12
     energy: 5
-    closeness: 8
+    closeness: 3
     coins: -18
 汤年糕:
   category: food
@@ -155,7 +155,7 @@
     hunger: 20
     mood: 10
     energy: 5
-    closeness: 5
+    closeness: 2
     coins: -10
 芋泥欧包:
   category: food
@@ -167,7 +167,7 @@
   effects:
     hunger: 16
     mood: 15
-    closeness: 5
+    closeness: 2
     coins: -12
 生日蛋糕:
   category: food
@@ -179,7 +179,7 @@
   effects:
     hunger: 10
     mood: 30
-    closeness: 18
+    closeness: 5
     coins: -30
 冰淇淋:
   category: food
@@ -191,7 +191,7 @@
   effects:
     hunger: 8
     mood: 15
-    closeness: 5
+    closeness: 2
     coins: -6
 汉堡炸鸡:
   category: food
@@ -214,7 +214,7 @@
   effects:
     hunger: -10
     mood: 25
-    closeness: 12
+    closeness: 4
 抹茶蛋糕:
   category: food
   emoji: 🍰
@@ -225,7 +225,7 @@
   effects:
     hunger: 14
     mood: 18
-    closeness: 8
+    closeness: 3
     coins: -15
 奶茶:
   category: food
@@ -238,7 +238,7 @@
     hunger: 8
     mood: 12
     energy: 5
-    closeness: 5
+    closeness: 2
     coins: -12
 提拉米苏:
   category: food
@@ -250,7 +250,7 @@
   effects:
     hunger: 15
     mood: 20
-    closeness: 10
+    closeness: 4
     coins: -18
 连连看:
   category: play
@@ -263,7 +263,7 @@
     hunger: -5
     mood: 15
     energy: -15
-    closeness: 5
+    closeness: 2
 宅舞一支:
   category: play
   emoji: 💃
@@ -275,7 +275,7 @@
     hunger: -8
     mood: 12
     energy: -20
-    closeness: 8
+    closeness: 3
 宅舞20连:
   category: play
   emoji: 🔥
@@ -287,7 +287,7 @@
     hunger: -15
     mood: 25
     energy: -40
-    closeness: 15
+    closeness: 4
     coins: 30
 你画我猜:
   category: play
@@ -300,7 +300,7 @@
     hunger: -3
     mood: 20
     energy: -8
-    closeness: 10
+    closeness: 3
 糖豆人:
   category: play
   emoji: 🎯
@@ -312,7 +312,7 @@
     hunger: -5
     mood: 15
     energy: -10
-    closeness: 5
+    closeness: 2
 健身环:
   category: play
   emoji: 🏋️
@@ -324,7 +324,7 @@
     hunger: -10
     mood: -10
     energy: -30
-    closeness: 5
+    closeness: 2
 JOJO立:
   category: play
   emoji: ⭐
@@ -336,7 +336,7 @@ JOJO立:
     hunger: 0
     mood: 18
     energy: -10
-    closeness: 8
+    closeness: 2
 Switch游戏:
   category: play
   emoji: 🎲
@@ -348,7 +348,7 @@ Switch游戏:
     hunger: -5
     mood: 18
     energy: -10
-    closeness: 8
+    closeness: 2
 唱猫中毒:
   category: play
   emoji: 🐱
@@ -360,7 +360,7 @@ Switch游戏:
     hunger: -3
     mood: 20
     energy: -8
-    closeness: 10
+    closeness: 3
     coins: 5
 唱YOU&IDOL:
   category: play
@@ -373,7 +373,7 @@ Switch游戏:
     hunger: -3
     mood: 15
     energy: -5
-    closeness: 8
+    closeness: 2
 打嗝:
   category: play
   emoji: 😳
@@ -382,7 +382,7 @@ Switch游戏:
   duration: 300
   effects:
     mood: -15
-    closeness: 10
+    closeness: 2
 拍摄抖音:
   category: play
   emoji: 📱
@@ -394,7 +394,7 @@ Switch游戏:
     hunger: -3
     mood: 10
     energy: -8
-    closeness: 5
+    closeness: 2
     coins: 10
 日常直播:
   category: work
@@ -406,7 +406,7 @@ Switch游戏:
   effects:
     hunger: -10
     energy: -25
-    closeness: 5
+    closeness: 2
     coins: 40
 生日会直播:
   category: work
@@ -419,7 +419,7 @@ Switch游戏:
     hunger: -15
     mood: 20
     energy: -30
-    closeness: 10
+    closeness: 3
     coins: 100
 练舞排练:
   category: work
@@ -432,7 +432,7 @@ Switch游戏:
     hunger: -8
     mood: -5
     energy: -20
-    closeness: 3
+    closeness: 1
     coins: 10
 团播:
   category: work
@@ -445,7 +445,7 @@ Switch游戏:
     hunger: -10
     mood: 10
     energy: -20
-    closeness: 5
+    closeness: 2
     coins: 50
 小剧场:
   category: work
@@ -458,7 +458,7 @@ Switch游戏:
     hunger: -5
     mood: 15
     energy: -15
-    closeness: 8
+    closeness: 2
     coins: 30
 摸摸头:
   category: social
@@ -468,7 +468,7 @@ Switch游戏:
   duration: 300
   effects:
     mood: 10
-    closeness: 12
+    closeness: 4
 说好耶:
   category: social
   emoji: 🎊
@@ -477,14 +477,15 @@ Switch游戏:
   duration: 300
   effects:
     mood: 8
-    closeness: 5
+    closeness: 2
 喊一米八:
   category: social
   emoji: 📏
   description: 身高梗——「一米八」还是「一米吧」？
   requires: {}
   duration: 300
-  effects: {}
+  effects:
+    closeness: 1
   random_effects:
     mood:
     - -15
@@ -501,7 +502,7 @@ Switch游戏:
   duration: 300
   effects:
     mood: 15
-    closeness: 8
+    closeness: 3
     coins: 5
 叫粉色矮子:
   category: social
@@ -511,7 +512,7 @@ Switch游戏:
   duration: 300
   effects:
     mood: -20
-    closeness: -5
+    closeness: -2
 说嘉心糖屁用没有:
   category: social
   emoji: 😢
@@ -520,7 +521,7 @@ Switch游戏:
   duration: 300
   effects:
     mood: -10
-    closeness: 5
+    closeness: 1
 写信小作文:
   category: social
   emoji: ✉️
@@ -529,7 +530,7 @@ Switch游戏:
   duration: 600
   effects:
     mood: 20
-    closeness: 15
+    closeness: 4
     coins: 10
 送抱枕:
   category: social
@@ -540,7 +541,7 @@ Switch游戏:
   duration: 600
   effects:
     mood: 15
-    closeness: 15
+    closeness: 4
     coins: -25
 Mua:
   category: social
@@ -550,7 +551,7 @@ Mua:
   duration: 600
   effects:
     mood: 25
-    closeness: 20
+    closeness: 5
 说土味情话:
   category: social
   emoji: 💌
@@ -559,7 +560,7 @@ Mua:
   duration: 300
   effects:
     mood: 10
-    closeness: 5
+    closeness: 2
 休息:
   category: daily
   emoji: 😴
@@ -569,6 +570,7 @@ Mua:
   effects:
     mood: -5
     energy: 30
+    closeness: 0
 逛街:
   category: daily
   emoji: 🛍️
@@ -580,7 +582,7 @@ Mua:
     hunger: -5
     mood: 15
     energy: -15
-    closeness: 8
+    closeness: 3
     coins: -20
 上学:
   category: daily
@@ -593,6 +595,7 @@ Mua:
     mood: -5
     energy: -10
     coins: 15
+    closeness: 0
 自画像:
   category: daily
   emoji: 🖼️
@@ -602,7 +605,7 @@ Mua:
   effects:
     mood: 10
     energy: -5
-    closeness: 10
+    closeness: 3
 敷面膜:
   category: daily
   emoji: 💆
@@ -613,7 +616,7 @@ Mua:
   effects:
     mood: 10
     energy: 5
-    closeness: 3
+    closeness: 1
     coins: -10
 刷B站:
   category: daily
@@ -624,6 +627,7 @@ Mua:
   effects:
     mood: 10
     energy: -5
+    closeness: 0
 吃夜宵:
   category: daily
   emoji: 🌙
@@ -634,5 +638,5 @@ Mua:
   effects:
     hunger: 15
     mood: 10
-    closeness: 3
+    closeness: 1
     coins: -10
