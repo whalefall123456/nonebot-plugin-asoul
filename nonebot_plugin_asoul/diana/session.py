@@ -273,35 +273,33 @@ class DianaSession:
             }
 
     async def tick(self) -> dict:
-        """被动时间流逝检查，返回触发的事件.
+        """触发事件检测并渲染事件卡片（无锁——调用方负责持锁 + 保存）.
 
         注意：不调 check_daily_decay()——streak 更新交由用户主动动作触发.
         """
-        async with self._lock:
-            events = _event_registry.tick(self.pet)
-            images = []
-            event_texts = []
-            for evt in events:
-                img = None
-                try:
-                    async with _render_semaphore:
-                        img = await _renderer.render_event_card({
-                            "type": evt.type, "name": evt.name,
-                            "id": evt.id, "text": evt.text,
-                            "effects": evt.effects,
-                        })
-                except _RENDER_EXCEPTIONS:
-                    logger.exception("Diana render_event_card failed for user=%s", self.user_id)
-                images.append(img)
-                event_texts.append(evt.text)
-            self._save()
-            return {
-                "events": [{"id": e.id, "type": e.type, "name": e.name, "text": e.text}
-                           for e in events],
-                "event_texts": event_texts,
-                "images": images,
-                "stats": self._stats_dict(),
-            }
+        events = _event_registry.tick(self.pet)
+        event_texts: list[str] = []
+        images: list[bytes | None] = []
+        for evt in events:
+            img = None
+            try:
+                async with _render_semaphore:
+                    img = await _renderer.render_event_card({
+                        "type": evt.type, "name": evt.name,
+                        "id": evt.id, "text": evt.text,
+                        "effects": evt.effects,
+                    })
+            except _RENDER_EXCEPTIONS:
+                logger.exception("Diana render_event_card failed for user=%s", self.user_id)
+            images.append(img)
+            event_texts.append(evt.text)
+        return {
+            "events": [{"id": e.id, "type": e.type, "name": e.name, "text": e.text}
+                       for e in events],
+            "event_texts": event_texts,
+            "images": images,
+            "stats": self._stats_dict(),
+        }
 
     # ── 服装方法（不经互动管道）──
 
@@ -459,10 +457,11 @@ async def _hook_track_category(session: DianaSession, item: Item, result: dict) 
 
 @DianaSession.on_post_action
 async def _hook_trigger_events(session: DianaSession, item: Item, result: dict) -> None:
-    """钩子 3: 触发事件检测."""
-    events = _event_registry.tick(session.pet)
-    if events:
-        result["events_triggered"] = [e.text for e in events]
+    """钩子 3: 触发事件检测 + 渲染事件卡片."""
+    tick_result = await session.tick()
+    if tick_result["event_texts"]:
+        result["events_triggered"] = tick_result["event_texts"]
+        result["event_images"] = tick_result["images"]
 
 
 @DianaSession.on_post_action
