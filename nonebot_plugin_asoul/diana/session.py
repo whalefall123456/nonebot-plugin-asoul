@@ -470,7 +470,7 @@ async def _hook_render_card(session: DianaSession, item: Item, result: dict) -> 
     try:
         async with _render_semaphore:
             img = await _renderer.render_interaction_card(
-                session.pet, item.id, item.emoji,
+                session.pet, item.id, item.emoji, item.description,
                 result.get("dialogue", ""), result.get("changes", {}),
             )
         result["image"] = img

@@ -120,7 +120,8 @@ class ImageRenderer:
         return await self._html_to_png(html, 680, 400)
 
     async def render_interaction_card(
-        self, pet: PetState, action_name: str, emoji: str, dialogue: str, changes: dict
+        self, pet: PetState, action_name: str, emoji: str, description: str,
+        dialogue: str, changes: dict,
     ) -> bytes:
         """渲染交互结果卡片."""
         template = self.env.get_template("interaction_card.html")
@@ -145,10 +146,11 @@ class ImageRenderer:
         html = template.render(
             emoji=emoji,
             action_name=action_name,
+            description=description,
             dialogue=dialogue,
             changes=change_items,
         )
-        return await self._html_to_png(html, 600, 320)
+        return await self._html_to_png(html, 600, 340)
 
     async def render_event_card(self, event: dict) -> bytes:
         """渲染事件卡片."""
