@@ -342,6 +342,7 @@ class DianaSession:
             self.pet.coins += bonus
             coin_bonus = f"🎁 运气不错！获得了 {bonus} 嘉心糖币！"
 
+
         return {
             "coin_bonus": coin_bonus,
             "events": [{"id": e.id, "type": e.type, "name": e.name, "text": e.text}

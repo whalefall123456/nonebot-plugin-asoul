@@ -15,8 +15,7 @@ from nonebot.adapters import Event
 from nonebot.internal.matcher import Matcher
 from nonebot.params import CommandArg
 from nonebot.plugin.on import on_command
-from nonebot.adapters.qq import Message
-from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
+from nonebot.adapters.qq import Message, MessageSegment
 
 from ..config import config
 
@@ -24,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 from .session import DianaSession, shutdown
 from .exceptions import DianaError
+
+# ── stat 变化的中文标签和图标 ──
+_CHANGE_LABELS = [
+    ("hunger", "饱腹", "🍽️"), ("mood", "心情", "😊"),
+    ("energy", "体力", "⚡"), ("closeness", "亲密度", "💕"),
+    ("coins", "金币", "💰"),
+]
 
 # ── 用户缓存 ──
 
@@ -51,10 +57,155 @@ async def get_session(user_id: str) -> DianaSession:
     return USER_CACHE[user_id]
 
 
-# ── 工具函数 ──
+# ── MD 消息构造 ──
+
+def _md_image(url: str, width: int, height: int, alt: str = "") -> str:
+    """生成 QQ Markdown 图片字面量."""
+    if not url or width <= 0 or height <= 0:
+        return ""
+    return f"![{alt} #{width}px #{height}px]({url})"
+
+
+def _changes_line(changes: dict) -> str:
+    """stat 变化 → 单行文本：🍽️ 饱腹 +25  ·  😊 心情 +15."""
+    parts = []
+    for key, label, icon in _CHANGE_LABELS:
+        val = changes.get(key, 0)
+        if val == 0:
+            continue
+        sign = "+" if val > 0 else ""
+        parts.append(f"{icon} {label} {sign}{val}")
+    return "  ·  ".join(parts) if parts else ""
+
+
+def _build_interaction_md(result: dict) -> str | None:
+    """构建互动结果 MD。COS 不可用时返回 None 触发降级."""
+    img_url = result.get("image_url")
+    if not img_url:
+        return None  # COS miss → 降级为本地图片
+
+    lines = []
+
+    # 交互卡片图
+    img_line = _md_image(img_url,
+                         result.get("image_width", 0),
+                         result.get("image_height", 0))
+    if img_line:
+        lines.append(img_line)
+        lines.append("")
+
+    # 对话文本
+    if dialogue := result.get("dialogue"):
+        lines.append(f"> {dialogue}")
+        lines.append("")
+
+    # stat 变化行
+    if changes := result.get("changes"):
+        line = _changes_line(changes)
+        if line:
+            lines.append(line)
+            lines.append("")
+
+    # 事件卡片 + 文本
+    event_texts = result.get("events_triggered", [])
+    event_urls = result.get("event_urls", [])
+    for i, evt_text in enumerate(event_texts):
+        if i < len(event_urls) and event_urls[i]:
+            evt_img = _md_image(event_urls[i], 600, 380)
+            if evt_img:
+                lines.append("---")
+                lines.append(evt_img)
+                lines.append("")
+        lines.append(evt_text)
+        lines.append("")
+
+    # 金币掉落
+    if coin_bonus := result.get("coin_bonus"):
+        lines.append(coin_bonus)
+        lines.append("")
+
+    # 换装触发
+    if costume_changed := result.get("costume_changed"):
+        lines.append(costume_changed)
+        lines.append("")
+
+    return "\n".join(lines).strip()
+
+
+def _build_error_md(result: dict) -> str:
+    """构建错误提示 MD."""
+    return str(result.get("text", "发生了一个未知错误……"))
+
+
+def _build_status_md(result: dict) -> str | None:
+    """构建状态卡片 MD."""
+    img_url = result.get("image_url")
+    if not img_url:
+        return None
+    img_line = _md_image(img_url,
+                         result.get("image_width", 0),
+                         result.get("image_height", 0))
+    if not img_line:
+        return None
+    lines = [img_line]
+    if alerts := result.get("alerts"):
+        lines.append("")
+        lines.append(f"⚠ {alerts}")
+    return "\n".join(lines)
+
+
+def _build_talk_md(result: dict) -> str | None:
+    """构建聊天 MD（梗事件 or 闲谈）."""
+    img_url = result.get("image_url")
+    if not img_url and result.get("meme_triggered"):
+        return None  # 梗事件但 COS miss → 降级
+    lines = []
+    if img_url:
+        img_line = _md_image(img_url, 600, 380)
+        if img_line:
+            lines.append(img_line)
+            lines.append("")
+    if text := result.get("text"):
+        lines.append(text)
+    return "\n".join(lines).strip() if lines else str(result.get("text", "..."))
+
+
+def _build_costume_md(result: dict) -> str | None:
+    """构建衣柜卡片 MD."""
+    img_url = result.get("image_url")
+    if not img_url:
+        return None
+    img_line = _md_image(img_url,
+                         result.get("image_width", 0),
+                         result.get("image_height", 0))
+    return img_line or None
+
 
 async def send_result(result: dict, matcher: Matcher) -> None:
-    """统一发送结果."""
+    """根据 result 内容构造 MD 消息发送；COS 不可用时降级为本地图片."""
+    from nonebot_plugin_alconna.uniseg import Image, Text, UniMessage
+
+    md_content = None
+
+    # 按消息类型选择 MD 构造器
+    if not result.get("success", True):
+        md_content = _build_error_md(result)
+    elif "changes" in result:
+        md_content = _build_interaction_md(result)
+    elif "alerts" in result or result.get("stats"):
+        md_content = _build_status_md(result)
+    elif "meme_triggered" in result:
+        md_content = _build_talk_md(result)
+    elif "image_url" in result and result.get("image_url"):
+        md_content = _build_costume_md(result)
+    else:
+        md_content = result.get("text") or str(result)
+
+    if md_content:
+        await MessageSegment.markdown(md_content).send()
+        return
+
+    # ── COS 降级：本地图片 ──
     message = UniMessage()
     if image := result.get("image"):
         message.append(Image(raw=image))
@@ -228,15 +379,12 @@ async def _(event: Event, matcher: Matcher):
 
 
 @diana_wardrobe.handle()
-async def _(event: Event):
+async def _(event: Event, matcher: Matcher):
     session = await get_session(event.get_user_id())
     result = await session.costume_list_card()
-    message = UniMessage(Text("🎀 然然的衣柜："))
-    if img := result.get("image"):
-        message.append(Image(raw=img))
-    else:
-        message.append(Text("\n（衣柜卡片渲染失败，请稍后再试）"))
-    await message.send()
+    if not result.get("image_url") and not result.get("image"):
+        result["text"] = "（衣柜卡片渲染失败，请稍后再试）"
+    await send_result(result, matcher)
 
 
 @diana_talk.handle()
