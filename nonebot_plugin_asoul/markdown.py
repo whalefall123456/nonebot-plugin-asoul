@@ -106,6 +106,7 @@ def get_about_xiaoran_markdown():
                 InlineKeyboardRow(
                     buttons=[
                         _link_button("submit", "点我投稿", "https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ"),
+                        _link_button("group", "交流群", "https://qm.qq.com/q/bTIMDcbTkA"),
                     ]
                 ),
             ]
