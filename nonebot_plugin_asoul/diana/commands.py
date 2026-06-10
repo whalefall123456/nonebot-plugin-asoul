@@ -227,6 +227,13 @@ diana_talk = on_command("然然", aliases={"然然聊天"}, priority=config.comm
 diana_interact = on_command("互动", aliases={"撒娇", "和然然互动"}, priority=config.command_priority)
 diana_daily = on_command("日常", aliases={"日常活动"}, priority=config.command_priority)
 diana_help = on_command("然然帮助", aliases={"宠物帮助", "然然指令"}, priority=config.command_priority)
+diana_checkin = on_command("签到", aliases={"嘉心糖签到", "每日签到"}, priority=config.command_priority)
+
+
+@diana_checkin.handle()
+async def _(matcher: Matcher):
+    result = {"text": "✅ 签到成功！获得了 10 嘉心糖币~"}
+    await send_result(result, matcher, "text")
 
 
 # ── 互动 handler（5 个统一路径：interact）──
