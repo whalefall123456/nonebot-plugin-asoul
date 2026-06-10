@@ -148,7 +148,8 @@ class DianaSession:
         self.pet = load_pet(user_id) or PetState.create(user_id)
         self._lock = _get_user_lock(user_id)
         self._recent_dialogues: list[str] = []
-        self._busy_until: float = 0.0  # 忙碌结束时间戳（秒）
+        self._busy_until: float = 0.0    # 忙碌结束时间戳（秒）
+        self._busy_action: str = ""      # 当前忙碌事项（item id）
 
     # ── 统一互动入口 ──
 
@@ -201,6 +202,7 @@ class DianaSession:
     def _set_busy(self, item: Item) -> None:
         if item.duration > 0:
             self._busy_until = time.time() + item.duration
+            self._busy_action = item.id
 
     def is_busy(self) -> bool:
         """返回当前是否在忙碌状态."""
@@ -210,6 +212,11 @@ class DianaSession:
     def busy_remaining(self) -> int:
         """剩余忙碌秒数（0 = 空闲）."""
         return max(0, int(self._busy_until - time.time()))
+
+    @property
+    def busy_action(self) -> str:
+        """当前忙碌事项（item id），空闲时为空."""
+        return self._busy_action if self.is_busy() else ""
 
     # ── 非互动方法（不受忙碌限制）──
 
@@ -273,10 +280,15 @@ class DianaSession:
                 "title": pet.title, "outfit": pet.outfit,
                 "streak_days": pet.streak_days,
                 "busy_until": int(self._busy_until),
+                "busy_action": self.busy_action,
             }
             async def producer():
                 async with _render_semaphore:
-                    return await _renderer.render_status_card(self.pet)
+                    return await _renderer.render_status_card(
+                        self.pet,
+                        busy_remaining=self.busy_remaining,
+                        busy_action=self.busy_action,
+                    )
 
             img_url, _, _, img = await self._upload_card(
                 recipe, producer, KEY_PREFIX["addressed_diana_status"],

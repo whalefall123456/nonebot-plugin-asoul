@@ -89,8 +89,20 @@ class ImageRenderer:
 
     # ── 卡片渲染 ──
 
-    async def render_status_card(self, pet: PetState) -> bytes:
-        """渲染宠物状态面板."""
+    async def render_status_card(
+        self, pet: PetState,
+        busy_remaining: int = 0,
+        busy_action: str = "",
+    ) -> bytes:
+        """渲染宠物状态面板.
+
+        Parameters
+        ----------
+        busy_remaining : int
+            忙碌剩余秒数，0 表示空闲.
+        busy_action : str
+            忙碌事项名称（item id），空字符串表示空闲.
+        """
         quotes = [
             "关注嘉然，顿顿解馋！🍓",
             "要成为全世界最开心的糖！",
@@ -98,6 +110,20 @@ class ImageRenderer:
             "我是你们最甜甜甜的小草莓~",
             "今天也是元气满满的一天呢！",
         ]
+        # 格式化忙碌剩余时间
+        busy_text = ""
+        if busy_remaining > 0:
+            if busy_remaining >= 3600:
+                h = busy_remaining // 3600
+                m = (busy_remaining % 3600) // 60
+                busy_text = f"{h}小时{m}分钟" if m else f"{h}小时"
+            elif busy_remaining >= 60:
+                m = busy_remaining // 60
+                s = busy_remaining % 60
+                busy_text = f"{m}分钟{s}秒" if s else f"{m}分钟"
+            else:
+                busy_text = f"{busy_remaining}秒"
+
         costume_img = self._get_costume_image_data(pet.outfit)
         costume_name = self._get_costume_name(pet.outfit)
         template = self.env.get_template("status_card.html")
@@ -110,6 +136,9 @@ class ImageRenderer:
             outfit=costume_name,
             costume_image=costume_img,
             quote=random.choice(quotes),
+            busy_remaining=busy_remaining,
+            busy_action=busy_action,
+            busy_text=busy_text,
             stats=[
                 {"icon": "🍽️", "label": "饱腹度", "value": pet.hunger},
                 {"icon": "😊", "label": "心情", "value": pet.mood},
@@ -117,7 +146,7 @@ class ImageRenderer:
                 {"icon": "💕", "label": "亲密度", "value": pet.closeness},
             ],
         )
-        return await self._html_to_png(html, 680, 400)
+        return await self._html_to_png(html, 680, 440)
 
     async def render_interaction_card(
         self, pet: PetState, action_name: str, emoji: str, description: str,
