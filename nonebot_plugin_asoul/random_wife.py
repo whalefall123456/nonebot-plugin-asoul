@@ -85,7 +85,8 @@ async def get_random_wife_md_message():
     content = (
         "## 今日抽老婆\n"
         f"你今日抽取的老婆是 **{name}**\n\n"
-        f"{md_img}"
+        f"{md_img}\n\n"
+        "添加喜欢的角色[【点击投稿】](https://docs.qq.com/form/page/DRkhCT0JLaFFJQmdJ)"
     )
 
     keyboard = MessageKeyboard(
