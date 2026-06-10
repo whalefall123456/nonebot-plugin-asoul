@@ -9,6 +9,7 @@
 
 import asyncio
 import logging
+import random
 import time
 from pathlib import Path
 from typing import Optional
@@ -333,7 +334,16 @@ class DianaSession:
             images.append(e_img)
             event_urls.append(e_url)
             event_texts.append(evt.text)
+
+        # 事件后 30% 概率掉落金币
+        coin_bonus = None
+        if random.random() < 0.3:
+            bonus = random.randint(10, 20)
+            self.pet.coins += bonus
+            coin_bonus = f"🎁 运气不错！获得了 {bonus} 嘉心糖币！"
+
         return {
+            "coin_bonus": coin_bonus,
             "events": [{"id": e.id, "type": e.type, "name": e.name, "text": e.text}
                        for e in events],
             "event_texts": event_texts,
@@ -540,6 +550,8 @@ async def _hook_trigger_events(session: DianaSession, item: Item, result: dict) 
         result["events_triggered"] = tick_result["event_texts"]
         result["event_images"] = tick_result["images"]
         result["event_urls"] = tick_result["event_urls"]
+    if tick_result["coin_bonus"]:
+        result["coin_bonus"] = tick_result["coin_bonus"]
 
 
 @DianaSession.on_post_action
