@@ -193,36 +193,36 @@ class EventRegistry:
     # ── 公共接口 ──
 
     def tick(self, pet: PetState) -> list[Event]:
-        """每次 tick 检查所有事件，返回触发的事件列表."""
-        triggered: list[Event] = []
+        """每次 tick 检查事件，最多触发一个。优先级：成就 > 特殊日期 > 随机."""
         today = today_str()
 
-        # 随机事件
-        for evt in self.random_events:
-            if evt.judge():
+        # 1. 成就（优先级最高）
+        for evt in self.achievement_events:
+            ach_key = f"ach_{evt.id}"
+            if ach_key not in pet.achievement_flags and evt.judge(pet=pet):
                 evt.apply(pet)
-                triggered.append(evt)
+                pet.achievement_flags[ach_key] = True
+                return [evt]
 
-        # 特殊日期
+        # 2. 特殊日期
         today_mmdd = today[5:]
         if today_mmdd in self.date_events:
             evt = self.date_events[today_mmdd]
             triggered_set = frozenset(pet.triggered_dates)
             if evt.judge(today=today, triggered_dates=triggered_set):
                 evt.apply(pet)
-                triggered.append(evt)
                 pet.triggered_dates.append(today_mmdd)
+                return [evt]
 
-        # 成就
-        for evt in self.achievement_events:
-            ach_key = f"ach_{evt.id}"
-            if ach_key not in pet.achievement_flags:
-                if evt.judge(pet=pet):
-                    evt.apply(pet)
-                    triggered.append(evt)
-                    pet.achievement_flags[ach_key] = True
+        # 3. 随机事件：打乱列表，首个通过概率判定的触发
+        shuffled = list(self.random_events)
+        random.shuffle(shuffled)
+        for evt in shuffled:
+            if evt.judge():
+                evt.apply(pet)
+                return [evt]
 
-        return triggered
+        return []
 
     def check_keywords(self, pet: PetState, text: str) -> list[Event]:
         """检测用户消息中的关键词，返回触发的事件（最多 1 个）."""
