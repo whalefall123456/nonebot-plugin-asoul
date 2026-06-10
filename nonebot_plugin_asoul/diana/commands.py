@@ -28,7 +28,7 @@ from .exceptions import DianaError
 # ── 用户缓存 ──
 
 USER_CACHE: OrderedDict[str, DianaSession] = OrderedDict()
-CACHE_MAX_SIZE = 500
+CACHE_MAX_SIZE = 50
 USER_CACHE_LOCK = asyncio.Lock()
 
 
@@ -230,9 +230,9 @@ async def _(event: Event, matcher: Matcher):
 @diana_wardrobe.handle()
 async def _(event: Event):
     session = await get_session(event.get_user_id())
-    img = await session.costume_list_card()
+    result = await session.costume_list_card()
     message = UniMessage(Text("🎀 然然的衣柜："))
-    if img is not None:
+    if img := result.get("image"):
         message.append(Image(raw=img))
     else:
         message.append(Text("\n（衣柜卡片渲染失败，请稍后再试）"))

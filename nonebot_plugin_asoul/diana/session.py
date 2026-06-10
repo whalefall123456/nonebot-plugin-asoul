@@ -28,6 +28,7 @@ from .utils import (
 from .exceptions import (
     DianaError, ActionNotFoundError, CostumeNotFoundError,
 )
+from ..storage import get_bucket, KEY_PREFIX, manifest, _recipe_hash
 
 logger = logging.getLogger(__name__)
 
@@ -220,18 +221,24 @@ class DianaSession:
 
             events = _event_registry.check_keywords(self.pet, message)
             img = None
+            img_url = None
             if events:
-                try:
+                evt = events[0]
+                recipe = {
+                    "v": 1, "kind": "event",
+                    "event_id": evt.id, "name": evt.name,
+                    "text": evt.text, "effects": evt.effects,
+                }
+                async def producer():
                     async with _render_semaphore:
-                        img = await _renderer.render_event_card({
-                            "type": events[0].type,
-                            "name": events[0].name,
-                            "id": events[0].id,
-                            "text": events[0].text,
-                            "effects": events[0].effects,
+                        return await _renderer.render_event_card({
+                            "type": evt.type, "name": evt.name,
+                            "id": evt.id, "text": evt.text,
+                            "effects": evt.effects,
                         })
-                except _RENDER_EXCEPTIONS:
-                    logger.exception("Diana render_event_card failed for user=%s", self.user_id)
+                img_url, _, _, img = await self._upload_card(
+                    recipe, producer, KEY_PREFIX["addressed_diana_event"],
+                )
 
             text = "\n".join(e.text for e in events) if events else ""
             if not events and message.strip():
@@ -247,6 +254,7 @@ class DianaSession:
                     for e in events
                 ],
                 "image": img,
+                "image_url": img_url,
                 "stats": self._stats_dict(),
             }
 
@@ -255,12 +263,24 @@ class DianaSession:
         async with self._lock:
             self.pet.tick()
             self.pet.check_daily_decay(today_str())
-            img = None
-            try:
+
+            pet = self.pet
+            recipe = {
+                "v": 1, "kind": "status",
+                "hunger": pet.hunger, "mood": pet.mood,
+                "energy": pet.energy, "closeness": pet.closeness,
+                "level": pet.level, "coins": pet.coins,
+                "title": pet.title, "outfit": pet.outfit,
+                "streak_days": pet.streak_days,
+                "busy_until": int(self._busy_until),
+            }
+            async def producer():
                 async with _render_semaphore:
-                    img = await _renderer.render_status_card(self.pet)
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_status_card failed for user=%s", self.user_id)
+                    return await _renderer.render_status_card(self.pet)
+
+            img_url, _, _, img = await self._upload_card(
+                recipe, producer, KEY_PREFIX["addressed_diana_status"],
+            )
 
             stats_text = self._format_status_text()
             alerts = self._get_low_stat_alerts()
@@ -268,6 +288,7 @@ class DianaSession:
             return {
                 "text": stats_text + ("\n\n⚠ " + alerts if alerts else ""),
                 "image": img,
+                "image_url": img_url,
                 "stats": self._stats_dict(),
                 "alerts": alerts,
             }
@@ -280,24 +301,32 @@ class DianaSession:
         events = _event_registry.tick(self.pet)
         event_texts: list[str] = []
         images: list[bytes | None] = []
+        event_urls: list[str | None] = []
         for evt in events:
-            img = None
-            try:
+            recipe = {
+                "v": 1, "kind": "event",
+                "event_id": evt.id, "name": evt.name,
+                "text": evt.text, "effects": evt.effects,
+            }
+            async def producer(_evt=evt):
                 async with _render_semaphore:
-                    img = await _renderer.render_event_card({
-                        "type": evt.type, "name": evt.name,
-                        "id": evt.id, "text": evt.text,
-                        "effects": evt.effects,
+                    return await _renderer.render_event_card({
+                        "type": _evt.type, "name": _evt.name,
+                        "id": _evt.id, "text": _evt.text,
+                        "effects": _evt.effects,
                     })
-            except _RENDER_EXCEPTIONS:
-                logger.exception("Diana render_event_card failed for user=%s", self.user_id)
-            images.append(img)
+            e_url, _, _, e_img = await self._upload_card(
+                recipe, producer, KEY_PREFIX["addressed_diana_event"],
+            )
+            images.append(e_img)
+            event_urls.append(e_url)
             event_texts.append(evt.text)
         return {
             "events": [{"id": e.id, "type": e.type, "name": e.name, "text": e.text}
                        for e in events],
             "event_texts": event_texts,
             "images": images,
+            "event_urls": event_urls,
             "stats": self._stats_dict(),
         }
 
@@ -337,15 +366,22 @@ class DianaSession:
                 self._save()
             return result
 
-    async def costume_list_card(self) -> bytes | None:
-        """渲染服装选择列表卡片."""
+    async def costume_list_card(self) -> dict:
+        """渲染服装选择列表卡片，返回 {image, image_url, image_width, image_height}."""
         costumes = _costume_registry.list_costumes(self.pet)
-        try:
+        recipe = {
+            "v": 1, "kind": "costume_list",
+            "owned": sorted(self.pet.owned_outfits),
+            "equipped": self.pet.outfit,
+        }
+        async def producer():
             async with _render_semaphore:
                 return await _renderer.render_costume_list(costumes)
-        except _RENDER_EXCEPTIONS:
-            logger.exception("Diana render_costume_list failed for user=%s", self.user_id)
-            return None
+
+        url, w, h, data = await self._upload_card(
+            recipe, producer, KEY_PREFIX["addressed_diana_costume"],
+        )
+        return {"image": data, "image_url": url, "image_width": w, "image_height": h}
 
     def list_items(self, category: Optional[str] = None) -> list[dict]:
         """列出可用互动动作."""
@@ -370,6 +406,35 @@ class DianaSession:
         """保存状态并关闭当前实例."""
         async with self._lock:
             self._save()
+
+    # ── 图床上传（内部）──
+
+    async def _upload_card(self, recipe: dict, producer, prefix: str) -> tuple[str | None, int, int, bytes | None]:
+        """渲染并上传卡片到 COS，返回 (url, width, height, bytes).
+
+        bytes 为 producer 的渲染结果（缓存命中时为 None）.
+        url 为 None 表示上传失败，调用方应降级使用 bytes.
+        """
+        rendered: list = []  # mutable to capture from closure
+        async def _wrapped():
+            data = await producer()
+            rendered.append(data)
+            return data
+
+        try:
+            bucket = get_bucket()
+            url = await bucket.get_or_render(recipe, _wrapped, prefix=prefix)
+            data = rendered[0] if rendered else None
+            if url is not None:
+                h = _recipe_hash(recipe)
+                entry = manifest.get_addressed(h)
+                if entry:
+                    return url, entry.get("width", 0), entry.get("height", 0), data
+                return url, 0, 0, data
+            return None, 0, 0, data
+        except Exception:
+            logger.exception("Diana COS upload failed for recipe=%s", recipe.get("kind"))
+            return None, 0, 0, rendered[0] if rendered else None
 
     # ── 内部 ──
 
@@ -462,21 +527,32 @@ async def _hook_trigger_events(session: DianaSession, item: Item, result: dict) 
     if tick_result["event_texts"]:
         result["events_triggered"] = tick_result["event_texts"]
         result["event_images"] = tick_result["images"]
+        result["event_urls"] = tick_result["event_urls"]
 
 
 @DianaSession.on_post_action
 async def _hook_render_card(session: DianaSession, item: Item, result: dict) -> None:
-    """钩子 4: 渲染互动结果卡片."""
-    try:
+    """钩子 4: 渲染互动结果卡片 + COS 上传."""
+    recipe = {
+        "v": 1, "kind": "interaction",
+        "action_id": item.id, "emoji": item.emoji,
+        "description": item.description,
+        "dialogue": result.get("dialogue", ""),
+        "changes": result.get("changes", {}),
+    }
+
+    async def producer():
         async with _render_semaphore:
-            img = await _renderer.render_interaction_card(
+            return await _renderer.render_interaction_card(
                 session.pet, item.id, item.emoji, item.description,
                 result.get("dialogue", ""), result.get("changes", {}),
             )
-        result["image"] = img
-    except _RENDER_EXCEPTIONS:
-        logger.exception(
-            "Diana render_interaction_card failed for user=%s action=%s",
-            session.pet.user_id, item.id,
-        )
-        result["image"] = None
+
+    url, w, h, data = await session._upload_card(
+        recipe, producer, KEY_PREFIX["addressed_diana_interaction"],
+    )
+    if url:
+        result["image_url"] = url
+        result["image_width"] = w
+        result["image_height"] = h
+    result["image"] = data  # COS bytes or local fallback
