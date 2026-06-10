@@ -394,6 +394,7 @@ class DianaSession:
         costumes = _costume_registry.list_costumes(self.pet)
         recipe = {
             "v": 1, "kind": "costume_list",
+            "all_costumes": sorted(c["id"] for c in costumes),
             "owned": sorted(self.pet.owned_outfits),
             "equipped": self.pet.outfit,
         }
